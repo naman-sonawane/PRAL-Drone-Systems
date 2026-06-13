@@ -1,0 +1,6 @@
+opencv-python>=4.8.0
+moviepy>=1.0.3
+numpy>=1.24.0
+ffmpeg-python>=0.2.0
+pytest>=7.0.0
+# librosa>=0.10.0   # uncomment for beat-sync stretch goal (dynamic style)
