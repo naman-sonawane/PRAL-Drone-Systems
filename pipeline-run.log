@@ -1,0 +1,93 @@
+
+======================================================================
+PRAL Footage Acquisition — end-to-end run
+======================================================================
+camera     : HFOV 84.0°  VFOV 53.0°  640x480
+scene      : box building  H=30.0m  20.0x20.0m  +4 trees +2 poles
+
+======================================================================
+Stage 1 — Target Selection & Confirmation
+======================================================================
+home frame : (37.42750, -122.16970)
+AOI        : 'pipeline_target'  4 vertices  ceiling=120m
+
+======================================================================
+Stage 2 — Survey, Geometry & Obstacle Map
+======================================================================
+orbit radius r : 38.11 m  (fits building in frame)
+obstacle map   : 8079 occupied cells
+
+======================================================================
+Stage 3 — 360° Mapping (NBV) & Close-Ups
+======================================================================
+coverage       : 92.1% of AOI surface
+occluded faces resolved : 6
+close-up viewpoints     : 6
+
+======================================================================
+Stage 4 — Interest Field & Value Assignment
+======================================================================
+value field    : 39 scored viewpoints
+peak viewpoint : value=139.072
+
+======================================================================
+Stage 5 — Path Optimization & Variety Shots
+======================================================================
+mission        : 35 waypoints
+shot types     : ['dronie', 'flyby', 'orbit', 'parallax', 'push_in', 'reveal', 'top_down']
+
+======================================================================
+Flight simulation
+======================================================================
+completed      : True
+collided       : False
+min clearance  : 3.46 m
+battery used   : 11.7%  (remaining 88.3%)
+
+======================================================================
+Curated Footage Set (the deliverable)
+======================================================================
+clips          : 35
+coverage       : 92.1%
+  clip  0 : orbit      1 pose(s)  tags=[orbit, value_139.07]
+  clip  1 : flyby      1 pose(s)  tags=[flyby, value_138.11]
+  clip  2 : reveal     1 pose(s)  tags=[reveal, value_138.33]
+  clip  3 : push_in    1 pose(s)  tags=[push_in, value_0.00]
+  clip  4 : top_down   1 pose(s)  tags=[top_down, value_0.04, occlusion_closeup]
+  clip  5 : parallax   1 pose(s)  tags=[parallax, value_0.05, occlusion_closeup]
+  clip  6 : dronie     1 pose(s)  tags=[dronie, value_42.60]
+  clip  7 : orbit      1 pose(s)  tags=[orbit, value_38.52]
+  clip  8 : flyby      1 pose(s)  tags=[flyby, value_40.06]
+  clip  9 : reveal     1 pose(s)  tags=[reveal, value_38.52]
+  clip 10 : push_in    1 pose(s)  tags=[push_in, value_42.60]
+  clip 11 : top_down   1 pose(s)  tags=[top_down, value_44.83]
+  clip 12 : parallax   1 pose(s)  tags=[parallax, value_45.47]
+  clip 13 : dronie     1 pose(s)  tags=[dronie, value_44.83]
+  clip 14 : orbit      1 pose(s)  tags=[orbit, value_135.23]
+  clip 15 : flyby      1 pose(s)  tags=[flyby, value_134.33]
+  clip 16 : reveal     1 pose(s)  tags=[reveal, value_132.97]
+  clip 17 : push_in    1 pose(s)  tags=[push_in, value_130.93]
+  clip 18 : top_down   1 pose(s)  tags=[top_down, value_128.42]
+  clip 19 : parallax   1 pose(s)  tags=[parallax, value_126.08]
+  clip 20 : dronie     1 pose(s)  tags=[dronie, value_127.12]
+  clip 21 : orbit      1 pose(s)  tags=[orbit, value_123.09]
+  clip 22 : flyby      1 pose(s)  tags=[flyby, value_123.24]
+  clip 23 : reveal     1 pose(s)  tags=[reveal, value_123.05]
+  clip 24 : push_in    1 pose(s)  tags=[push_in, value_123.24]
+  clip 25 : top_down   1 pose(s)  tags=[top_down, value_123.09]
+  clip 26 : parallax   1 pose(s)  tags=[parallax, value_127.12]
+  clip 27 : dronie     1 pose(s)  tags=[dronie, value_126.08]
+  clip 28 : orbit      1 pose(s)  tags=[orbit, value_128.42]
+  clip 29 : flyby      1 pose(s)  tags=[flyby, value_130.93]
+  clip 30 : reveal     1 pose(s)  tags=[reveal, value_132.97]
+  clip 31 : push_in    1 pose(s)  tags=[push_in, value_134.33]
+  clip 32 : top_down   1 pose(s)  tags=[top_down, value_135.23]
+  clip 33 : parallax   1 pose(s)  tags=[parallax, value_138.33]
+  clip 34 : dronie     1 pose(s)  tags=[dronie, value_138.11]
+
+schema validation : PASS — artifact is well-formed and consumable
+
+======================================================================
+DONE
+======================================================================
+Full pipeline ran end-to-end and produced a validated Curated Footage Set.

@@ -1,0 +1,42 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0
+rootdir: /Users/ray/Coding/Hackathons/PRAL-Drone-Systems
+configfile: pyproject.toml
+testpaths: tests
+collected 107 items
+
+tests/test_artifact_contract.py ..........                               [  9%]
+tests/test_camera.py ......                                              [ 14%]
+tests/test_e2e.py ......ssss                                             [ 24%]
+tests/test_frames.py .....                                               [ 28%]
+tests/test_sim_harness.py ..........s                                    [ 39%]
+tests/test_stage1.py ................s                                   [ 55%]
+tests/test_stage2.py ..........s                                         [ 65%]
+tests/test_stage3.py ...........s                                        [ 76%]
+tests/test_stage4.py .....ss                                             [ 83%]
+tests/test_stage5.py .................s                                  [100%]
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_e2e.py:333: needs field data
+SKIPPED [1] tests/test_e2e.py:348: needs field data
+SKIPPED [1] tests/test_e2e.py:363: needs field data
+SKIPPED [1] tests/test_e2e.py:378: needs field data
+SKIPPED [1] tests/test_sim_harness.py:206: needs field data
+SKIPPED [1] tests/test_stage1.py:244: needs field data
+SKIPPED [1] tests/test_stage2.py:174: needs field data
+SKIPPED [1] tests/test_stage3.py:261: needs field data
+SKIPPED [1] tests/test_stage4.py:184: needs field data
+SKIPPED [1] tests/test_stage4.py:203: needs field data
+SKIPPED [1] tests/test_stage5.py:334: needs field data
+============ 96 passed, 11 skipped, 3 warnings in 441.43s (0:07:21) ============
