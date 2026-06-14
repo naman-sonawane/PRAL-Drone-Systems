@@ -1,0 +1,6 @@
+python-dotenv
+fastapi
+uvicorn[standard]
+requests
+pymap3d
+numpy

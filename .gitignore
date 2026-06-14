@@ -17,3 +17,12 @@ env/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Environment secrets
+.env
+
+# Large binaries / data
+*.MP4
+*.mp4
+*.pt
+stage4data/

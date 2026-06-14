@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRAL Stage 1b — AOI Annotation</title>
+
+  <!-- Mapbox GL JS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+
+  <!-- Mapbox Draw (fallback manual polygon) -->
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d0d0d;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    #topbar h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #aaa; margin-right: 8px; white-space: nowrap; }
+    #topbar label { font-size: 12px; color: #888; }
+    #topbar input[type="text"] { width: 130px; background: #222; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; padding: 5px 8px; font-size: 13px; outline: none; transition: border-color 0.15s; }
+    #topbar input[type="text"]:focus { border-color: #555; }
+
+    button { padding: 6px 14px; border: none; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s, opacity 0.15s; }
+    button:disabled { opacity: 0.4; cursor: default; }
+
+    #btn-go             { background: #333; color: #ddd; }
+    #btn-go:hover:not(:disabled) { background: #444; }
+    #btn-annotate       { background: #1a6bb5; color: #fff; }
+    #btn-annotate:hover:not(:disabled) { background: #2279cc; }
+    #btn-confirm-manual { background: #c0392b; color: #fff; display: none; }
+    #btn-confirm-manual:hover:not(:disabled) { background: #e74c3c; }
+
+    #e7-badge { display: none; background: #f59e0b; color: #000; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 3px; letter-spacing: 0.06em; }
+    #status { margin-left: auto; font-size: 12px; color: #666; white-space: nowrap; }
+
+    /* ── Bottom bar ── */
+    #bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 10px 16px;
+      background: #161616;
+      border-top: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+    #btn-survey {
+      background: #16a34a;
+      color: #fff;
+      padding: 8px 22px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    #btn-survey:hover { background: #15803d; }
+
+    /* ── Map ── */
+    #map { flex: 1; width: 100%; }
+
+    /* ── Standard AOI panel ── */
+    #panel {
+      position: absolute; top: 70px; right: 16px; width: 260px;
+      background: rgba(18,18,18,0.92); border: 1px solid #2a2a2a;
+      border-radius: 6px; padding: 14px 16px; display: none;
+      backdrop-filter: blur(6px); z-index: 10;
+    }
+    #panel h2 { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 10px; }
+    #panel .row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px solid #222; }
+    #panel .row:last-child { border-bottom: none; }
+    #panel .key { color: #666; }
+    #panel .val { color: #e0e0e0; font-variant-numeric: tabular-nums; }
+
+    /* ── E7 fitting panel ── */
+    #e7-panel {
+      position: absolute; top: 70px; right: 16px; width: 330px;
+      max-height: calc(100vh - 90px); overflow-y: auto;
+      background: rgba(13,13,13,0.97); border: 1px solid #2a2a2a;
+      border-radius: 6px; padding: 14px 16px; display: none;
+      backdrop-filter: blur(8px); z-index: 10;
+    }
+    #e7-panel::-webkit-scrollbar { width: 4px; }
+    #e7-panel::-webkit-scrollbar-track { background: transparent; }
+    #e7-panel::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+    .e7-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .e7-header-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #f59e0b; }
+    .e7-header-sub { font-size: 10px; color: #444; }
+
+    .e7-sep { border: none; border-top: 1px solid #1e1e1e; margin: 12px 0; }
+
+    .e7-section-title { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+
+    .e7-control-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .e7-control-row label { font-size: 12px; color: #777; min-width: 62px; }
+    .e7-control-row input[type="range"] { flex: 1; accent-color: #3b82f6; cursor: pointer; }
+    .e7-val { font-size: 12px; color: #c0c0c0; font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
+
+    .e7-centre-row { display: flex; gap: 16px; font-size: 12px; }
+    .e7-centre-row .axis { display: flex; align-items: center; gap: 6px; }
+    .e7-centre-row .axis-label { color: #555; font-size: 11px; }
+    .e7-centre-row .axis-val { color: #7dd3a8; font-variant-numeric: tabular-nums; }
+
+    /* Group cards */
+    .e7-group-card { border: 1px solid #232323; border-radius: 5px; padding: 10px; margin-bottom: 10px; background: #0f0f0f; }
+    .e7-group-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+    .e7-colour-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .e7-group-name { flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 3px; color: #ddd; padding: 3px 7px; font-size: 12px; outline: none; }
+    .e7-group-name:focus { border-color: #444; }
+    .e7-vis-btn { background: none; border: 1px solid #2a2a2a; border-radius: 3px; color: #555; padding: 2px 7px; font-size: 11px; cursor: pointer; transition: all 0.12s; }
+    .e7-vis-btn.on { border-color: #444; color: #aaa; }
+    .e7-del-btn { background: none; border: none; color: #444; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 2px; }
+    .e7-del-btn:hover { color: #e74c3c; }
+    .e7-points-area { width: 100%; background: #0a0a0a; border: 1px solid #222; border-radius: 3px; color: #bbb; font-size: 11px; font-family: 'SF Mono', 'Fira Mono', monospace; padding: 7px 8px; resize: vertical; min-height: 72px; outline: none; line-height: 1.6; }
+    .e7-points-area:focus { border-color: #333; }
+
+    .e7-add-btn { width: 100%; background: #111; border: 1px dashed #2a2a2a; border-radius: 4px; color: #444; font-size: 12px; padding: 7px; cursor: pointer; transition: all 0.15s; }
+    .e7-add-btn:hover { border-color: #444; color: #777; }
+
+    .e7-json-pre { width: 100%; background: #080808; border: 1px solid #1e1e1e; border-radius: 4px; color: #7dd3a8; font-size: 10px; font-family: 'SF Mono', 'Fira Mono', monospace; padding: 8px 10px; white-space: pre; overflow-x: auto; max-height: 200px; overflow-y: auto; margin-top: 6px; line-height: 1.5; }
+    .e7-copy-btn { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 3px; color: #666; font-size: 11px; padding: 4px 12px; cursor: pointer; margin-top: 7px; transition: all 0.12s; }
+    .e7-copy-btn:hover { background: #222; color: #aaa; }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div id="topbar">
+  <h1>PRAL 1b</h1>
+  <span id="e7-badge">E7</span>
+  <label>Lat</label>
+  <input type="text" id="inp-lat" value="43.4730" placeholder="43.4730" />
+  <label>Lon</label>
+  <input type="text" id="inp-lon" value="-80.5395" placeholder="-80.5395" />
+  <button id="btn-go">Go</button>
+  <button id="btn-annotate" disabled>Annotate</button>
+  <button id="btn-confirm-manual">Confirm Manual</button>
+  <span id="status">Drop a pin to begin</span>
+</div>
+
+<!-- Map container -->
+<div id="map"></div>
+
+<!-- Bottom bar -->
+<div id="bottombar">
+  <button id="btn-survey" onclick="window.location.href='http://localhost:8001'">Begin Survey</button>
+</div>
+
+<!-- Standard AOI panel -->
+<div id="panel">
+  <h2>Confirmed AOI</h2>
+  <div class="row"><span class="key">Source</span><span class="val" id="p-source">—</span></div>
+  <div class="row"><span class="key">Centroid lat</span><span class="val" id="p-lat">—</span></div>
+  <div class="row"><span class="key">Centroid lon</span><span class="val" id="p-lon">—</span></div>
+</div>
+
+<!-- E7 Fitting panel -->
+<div id="e7-panel">
+  <div class="e7-header">
+    <span class="e7-header-title">E7 Polygon Fitting</span>
+    <span class="e7-header-sub">UW Engineering 7</span>
+  </div>
+
+  <!-- Transform controls -->
+  <div class="e7-section-title">Transform</div>
+  <div class="e7-control-row">
+    <label>Rotation</label>
+    <input type="range" id="e7-rotation" min="0" max="360" step="0.5" value="0" />
+    <span class="e7-val" id="e7-rotation-val">0.0°</span>
+  </div>
+  <div class="e7-control-row" style="margin-bottom:0">
+    <label>Scale</label>
+    <input type="range" id="e7-scale" min="0.1" max="50" step="0.1" value="1" />
+    <span class="e7-val" id="e7-scale-val">1.00×</span>
+  </div>
+
+  <hr class="e7-sep" />
+
+  <!-- Centre pivot -->
+  <div class="e7-section-title">Centre pivot — drag marker on map</div>
+  <div class="e7-centre-row">
+    <div class="axis"><span class="axis-label">E</span><span class="axis-val" id="e7-ce">0.00 m</span></div>
+    <div class="axis"><span class="axis-label">N</span><span class="axis-val" id="e7-cn">0.00 m</span></div>
+  </div>
+
+  <hr class="e7-sep" />
+
+  <!-- Sub-polygons -->
+  <div class="e7-section-title">Sub-polygons</div>
+  <div id="e7-groups-container"></div>
+  <button class="e7-add-btn" id="e7-add-group">+ Add group</button>
+
+  <hr class="e7-sep" />
+
+  <!-- JSON output -->
+  <div class="e7-section-title">Output JSON</div>
+  <pre class="e7-json-pre" id="e7-json-out">{}</pre>
+  <button class="e7-copy-btn" id="e7-copy-btn">Copy JSON</button>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────────
+const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN';
+mapboxgl.accessToken = MAPBOX_TOKEN;
+
+// ── E7 constants ───────────────────────────────────────────────────────────────
+const E7_LAT       = 43.4730;
+const E7_LON       = -80.5395;
+const E7_TOLERANCE = 0.0005;
+const R_EARTH      = 6378137;
+
+const E7_DEFAULT_POINTS = [
+  [-2.35,-3.7],[0.01,-1.72],[0.24,-1.63],[0.1,-1.23],[-0.13,-1.29],
+  [-1.9,2.13],[-1.48,2.34],[-1.73,2.87],[0.65,4.08],[1.05,3.38],
+  [2.93,-0.26],[3.31,-1],[0.33,-2.69],[0.1,-2.1],[-2.24,-3.88]
+];
+const E7_DEFAULT_SCALE    = 22.9;
+const E7_DEFAULT_ROTATION = 0;
+const E7_DEFAULT_CENTRE   = { e: -38.89, n: -39.49 };
+
+const GROUP_COLOURS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4'];
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let pinMarker  = null;
+let pinLatLon  = null;   // { lat, lon }
+let candidates = [];
+let drawControl = null;
+let drawActive  = false;
+
+// E7 state
+let e7Active         = false;
+let e7Groups         = [];      // [{ id, name, points: [[e,n],...], visible }]
+let e7LocalPivot     = { e: 0, n: 0 }; // centroid of original points (fixed, rotation/scale pivot)
+let e7Centre         = { e: 0, n: 0 }; // where the marker is (translation target)
+let e7Rotation       = 0;
+let e7Scale          = 1;
+let e7CentreMarker   = null;
+let e7GroupIdCounter = 0;
+
+// ── Map init ───────────────────────────────────────────────────────────────────
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/satellite-streets-v12',
+  center: [-80.5395, 43.4730],
+  zoom: 15,
+});
+map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+
+// ── DOM refs ───────────────────────────────────────────────────────────────────
+const statusEl  = document.getElementById('status');
+const btnGo     = document.getElementById('btn-go');
+const btnAnnotate = document.getElementById('btn-annotate');
+const btnManual = document.getElementById('btn-confirm-manual');
+const panel     = document.getElementById('panel');
+const e7Panel   = document.getElementById('e7-panel');
+const e7Badge   = document.getElementById('e7-badge');
+
+function setStatus(msg) { statusEl.textContent = msg; }
+
+// ── Standard panel ─────────────────────────────────────────────────────────────
+function showPanel(aoi) {
+  document.getElementById('p-source').textContent = aoi.source;
+  document.getElementById('p-lat').textContent    = aoi.centroid_lat.toFixed(6);
+  document.getElementById('p-lon').textContent    = aoi.centroid_lon.toFixed(6);
+  panel.style.display = 'block';
+}
+
+// ── Go / fly to pin ────────────────────────────────────────────────────────────
+btnGo.addEventListener('click', () => {
+  const lat = parseFloat(document.getElementById('inp-lat').value);
+  const lon = parseFloat(document.getElementById('inp-lon').value);
+  if (isNaN(lat) || isNaN(lon)) { setStatus('Invalid coordinates'); return; }
+  flyToPin(lat, lon);
+});
+
+function flyToPin(lat, lon) {
+  pinLatLon = { lat, lon };
+  map.flyTo({ center: [lon, lat], zoom: 18, speed: 1.4 });
+
+  if (pinMarker) pinMarker.remove();
+  pinMarker = new mapboxgl.Marker({ color: '#e74c3c' }).setLngLat([lon, lat]).addTo(map);
+
+  btnAnnotate.disabled = false;
+  setStatus(`Pin at ${lat.toFixed(5)}, ${lon.toFixed(5)}`);
+
+  clearCandidateLayers();
+  clearAOILayer();
+  panel.style.display = 'none';
+  btnManual.style.display = 'none';
+  if (drawActive) disableDraw();
+  if (e7Active) exitE7Mode();
+}
+
+map.on('click', e => {
+  if (drawActive || e7Active) return;
+  const { lat, lng: lon } = e.lngLat;
+  document.getElementById('inp-lat').value = lat.toFixed(6);
+  document.getElementById('inp-lon').value = lon.toFixed(6);
+  flyToPin(lat, lon);
+});
+
+// ── Layer management ───────────────────────────────────────────────────────────
+const CANDIDATE_SOURCE_PREFIX  = 'candidate-';
+const CANDIDATE_FILL_PREFIX    = 'fill-';
+const CANDIDATE_OUTLINE_PREFIX = 'outline-';
+const AOI_SOURCE  = 'aoi-source';
+const AOI_FILL    = 'aoi-fill';
+const AOI_OUTLINE = 'aoi-outline';
+let candidateLayerIds = [];
+
+function clearCandidateLayers() {
+  candidateLayerIds.forEach(id => {
+    if (map.getLayer(id)) map.removeLayer(id);
+    const srcId = CANDIDATE_SOURCE_PREFIX + id.replace(/^(fill|outline)-/, '');
+    if (map.getSource(srcId)) map.removeSource(srcId);
+  });
+  candidateLayerIds = [];
+  candidates = [];
+}
+
+function clearAOILayer() {
+  if (map.getLayer(AOI_FILL))    map.removeLayer(AOI_FILL);
+  if (map.getLayer(AOI_OUTLINE)) map.removeLayer(AOI_OUTLINE);
+  if (map.getSource(AOI_SOURCE)) map.removeSource(AOI_SOURCE);
+}
+
+function toGeoJsonCoords(polygon_latlon) {
+  const ring = polygon_latlon.map(([lat, lon]) => [lon, lat]);
+  if (ring.length > 0) {
+    const first = ring[0], last = ring[ring.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) ring.push(first);
+  }
+  return [ring];
+}
+
+// ── Annotate ───────────────────────────────────────────────────────────────────
+btnAnnotate.addEventListener('click', async () => {
+  if (!pinLatLon) return;
+
+  // E7 special case
+  if (isE7Mode(pinLatLon.lat, pinLatLon.lon)) {
+    enterE7Mode();
+    return;
+  }
+
+  btnAnnotate.disabled = true;
+  setStatus('Querying OSM...');
+  clearCandidateLayers();
+  clearAOILayer();
+  panel.style.display = 'none';
+  btnManual.style.display = 'none';
+  if (drawActive) disableDraw();
+
+  let data;
+  try {
+    const res = await fetch('/annotate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: pinLatLon.lat, lon: pinLatLon.lon }),
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    data = await res.json();
+  } catch (err) {
+    setStatus(`Error: ${err.message}`);
+    btnAnnotate.disabled = false;
+    return;
+  }
+
+  candidates = data.candidates;
+
+  if (candidates.length === 0) {
+    setStatus('No OSM footprints found — draw a polygon manually');
+    enableDraw();
+    btnAnnotate.disabled = false;
+    return;
+  }
+
+  const colours = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4'];
+
+  candidates.forEach((c, i) => {
+    const colour = colours[i % colours.length];
+    const srcId  = CANDIDATE_SOURCE_PREFIX + c.id;
+    const fillId = CANDIDATE_FILL_PREFIX + c.id;
+    const lineId = CANDIDATE_OUTLINE_PREFIX + c.id;
+
+    map.addSource(srcId, {
+      type: 'geojson',
+      data: { type: 'Feature', properties: { id: c.id, source: c.source, confidence: c.confidence }, geometry: { type: 'Polygon', coordinates: toGeoJsonCoords(c.polygon_latlon) } },
+    });
+    map.addLayer({ id: fillId, type: 'fill',   source: srcId, paint: { 'fill-color': colour, 'fill-opacity': 0.25 } });
+    map.addLayer({ id: lineId, type: 'line',   source: srcId, paint: { 'line-color': colour, 'line-width': 1.5 } });
+
+    const labelSrcId   = srcId + '-label';
+    const labelLayerId = fillId + '-label';
+    map.addSource(labelSrcId, {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'Point', coordinates: [c.centroid_lon, c.centroid_lat] }, properties: { label: `${c.source} · ${(c.confidence*100).toFixed(0)}%` } },
+    });
+    map.addLayer({ id: labelLayerId, type: 'symbol', source: labelSrcId, layout: { 'text-field': ['get','label'], 'text-size': 11, 'text-anchor': 'center' }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#000000', 'text-halo-width': 1.5 } });
+
+    candidateLayerIds.push(fillId, lineId, labelLayerId);
+    map.on('click',      fillId, () => confirmCandidate(c));
+    map.on('mouseenter', fillId, () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', fillId, () => { map.getCanvas().style.cursor = ''; });
+  });
+
+  setStatus(`${candidates.length} candidate(s) found — click one to confirm`);
+  btnAnnotate.disabled = false;
+});
+
+// ── Confirm candidate ──────────────────────────────────────────────────────────
+async function confirmCandidate(candidate) {
+  setStatus('Confirming...');
+  let data;
+  try {
+    const res = await fetch('/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate_id: candidate.id, candidates }),
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    data = await res.json();
+  } catch (err) { setStatus(`Error: ${err.message}`); return; }
+
+  const aoi = data.aoi;
+  clearCandidateLayers();
+  clearAOILayer();
+
+  map.addSource(AOI_SOURCE, { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: toGeoJsonCoords(aoi.polygon_latlon) } } });
+  map.addLayer({ id: AOI_FILL,    type: 'fill', source: AOI_SOURCE, paint: { 'fill-color': '#e74c3c', 'fill-opacity': 0.15 } });
+  map.addLayer({ id: AOI_OUTLINE, type: 'line', source: AOI_SOURCE, paint: { 'line-color': '#e74c3c', 'line-width': 2.5 } });
+
+  showPanel(aoi);
+  setStatus('AOI confirmed');
+}
+
+// ── Manual draw ────────────────────────────────────────────────────────────────
+function enableDraw() {
+  if (drawActive) return;
+  drawControl = new MapboxDraw({ displayControlsDefault: false, controls: { polygon: true, trash: true }, defaultMode: 'draw_polygon' });
+  map.addControl(drawControl, 'top-left');
+  drawActive = true;
+  btnManual.style.display = 'inline-block';
+}
+
+function disableDraw() {
+  if (!drawActive || !drawControl) return;
+  map.removeControl(drawControl);
+  drawControl = null;
+  drawActive  = false;
+  btnManual.style.display = 'none';
+}
+
+btnManual.addEventListener('click', () => {
+  if (!drawControl) return;
+  const drawn = drawControl.getAll();
+  if (!drawn.features.length) { setStatus('Draw a polygon first'); return; }
+
+  const feature = drawn.features[drawn.features.length - 1];
+  const coords  = feature.geometry.coordinates[0];
+  const polygon_latlon = coords.map(([lon, lat]) => [lat, lon]);
+  const centroid_lon = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+  const centroid_lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+  const manualAOI = { source: 'manual', centroid_lat, centroid_lon, polygon_latlon };
+
+  disableDraw();
+  clearAOILayer();
+
+  map.addSource(AOI_SOURCE, { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: toGeoJsonCoords(polygon_latlon) } } });
+  map.addLayer({ id: AOI_FILL,    type: 'fill', source: AOI_SOURCE, paint: { 'fill-color': '#e74c3c', 'fill-opacity': 0.15 } });
+  map.addLayer({ id: AOI_OUTLINE, type: 'line', source: AOI_SOURCE, paint: { 'line-color': '#e74c3c', 'line-width': 2.5 } });
+
+  showPanel(manualAOI);
+  setStatus('Manual AOI confirmed');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// E7 FITTING MODE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function isE7Mode(lat, lon) {
+  return Math.abs(lat - E7_LAT) < E7_TOLERANCE && Math.abs(lon - E7_LON) < E7_TOLERANCE;
+}
+
+// ENU (metres relative to pin) ↔ GPS
+function enuToLatLon(e, n) {
+  const lat0rad = pinLatLon.lat * Math.PI / 180;
+  const lat = pinLatLon.lat + (n / R_EARTH) * (180 / Math.PI);
+  const lon = pinLatLon.lon + (e / (R_EARTH * Math.cos(lat0rad))) * (180 / Math.PI);
+  return [lat, lon];
+}
+
+function latLonToEnu(lat, lon) {
+  const lat0rad = pinLatLon.lat * Math.PI / 180;
+  const n = (lat - pinLatLon.lat) * (Math.PI / 180) * R_EARTH;
+  const e = (lon - pinLatLon.lon) * (Math.PI / 180) * R_EARTH * Math.cos(lat0rad);
+  return [e, n];
+}
+
+// Scale + rotate around localPivot, then translate to where the marker is (e7Centre)
+function transformPoint(e, n) {
+  const de  = e - e7LocalPivot.e;
+  const dn  = n - e7LocalPivot.n;
+  const se  = de * e7Scale;
+  const sn  = dn * e7Scale;
+  const rad = e7Rotation * Math.PI / 180;
+  const re  = se * Math.cos(rad) - sn * Math.sin(rad);
+  const rn  = se * Math.sin(rad) + sn * Math.cos(rad);
+  return [re + e7Centre.e, rn + e7Centre.n];
+}
+
+function groupToGeoJson(group) {
+  if (group.points.length < 3) return emptyFeature();
+  const ring = group.points.map(([e, n]) => {
+    const [te, tn] = transformPoint(e, n);
+    const [lat, lon] = enuToLatLon(te, tn);
+    return [lon, lat];
+  });
+  ring.push(ring[0]); // close ring
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
+}
+
+function emptyFeature() {
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[]] } };
+}
+
+function parsePointsText(text) {
+  return text.split('\n')
+    .map(l => l.trim()).filter(l => l.length > 0)
+    .map(l => {
+      const parts = l.split(/[\s,]+/).map(Number);
+      return (parts.length >= 2 && !parts.some(isNaN)) ? [parts[0], parts[1]] : null;
+    })
+    .filter(Boolean);
+}
+
+function pointsToText(pts) {
+  return pts.map(([e, n]) => `${e}, ${n}`).join('\n');
+}
+
+// ── Enter / Exit E7 ────────────────────────────────────────────────────────────
+function enterE7Mode() {
+  e7Active         = true;
+  e7Rotation       = E7_DEFAULT_ROTATION;
+  e7Scale          = E7_DEFAULT_SCALE;
+  e7Groups         = [];
+  e7GroupIdCounter = 0;
+
+  // Fixed local pivot = centroid of the raw points (rotation/scale reference)
+  const allPts = E7_DEFAULT_POINTS;
+  const ce = allPts.reduce((s, p) => s + p[0], 0) / allPts.length;
+  const cn = allPts.reduce((s, p) => s + p[1], 0) / allPts.length;
+  e7LocalPivot = { e: ce, n: cn };
+  e7Centre     = { ...E7_DEFAULT_CENTRE };
+
+  // Set sliders
+  document.getElementById('e7-rotation').value = E7_DEFAULT_ROTATION;
+  document.getElementById('e7-rotation-val').textContent = E7_DEFAULT_ROTATION.toFixed(1) + '°';
+  document.getElementById('e7-scale').value = E7_DEFAULT_SCALE;
+  document.getElementById('e7-scale-val').textContent = E7_DEFAULT_SCALE.toFixed(2) + '×';
+  document.getElementById('e7-groups-container').innerHTML = '';
+
+  // Initial group with all default points
+  createGroup('Group 1', E7_DEFAULT_POINTS);
+
+  // Place draggable pivot marker
+  placeCentreMarker();
+
+  e7Panel.style.display = 'block';
+  panel.style.display   = 'none';
+  e7Badge.style.display = 'inline-block';
+
+  renderE7Layers();
+  updateCentreDisplay();
+  updateE7Json();
+  setStatus('E7 fitting mode — rotate, scale, and drag the pivot marker');
+}
+
+function exitE7Mode() {
+  e7Active = false;
+  e7Panel.style.display = 'none';
+  e7Badge.style.display = 'none';
+
+  if (e7CentreMarker) { e7CentreMarker.remove(); e7CentreMarker = null; }
+  e7Groups.forEach(g => removeGroupLayers(g.id));
+  e7Groups    = [];
+  e7LocalPivot = { e: 0, n: 0 };
+}
+
+// ── Group management ───────────────────────────────────────────────────────────
+function createGroup(name, points) {
+  const id    = ++e7GroupIdCounter;
+  const group = { id, name, points: points || [], visible: true };
+  e7Groups.push(group);
+  renderGroupCard(group);
+  return group;
+}
+
+function renderGroupCard(group) {
+  const colour    = GROUP_COLOURS[(group.id - 1) % GROUP_COLOURS.length];
+  const container = document.getElementById('e7-groups-container');
+
+  const card = document.createElement('div');
+  card.className = 'e7-group-card';
+  card.id = `e7-card-${group.id}`;
+
+  // Header row
+  const header = document.createElement('div');
+  header.className = 'e7-group-header';
+
+  const dot = document.createElement('span');
+  dot.className = 'e7-colour-dot';
+  dot.style.background = colour;
+
+  const nameInput = document.createElement('input');
+  nameInput.className = 'e7-group-name';
+  nameInput.value = group.name;
+  nameInput.addEventListener('input', () => { group.name = nameInput.value; updateE7Json(); });
+
+  const visBtn = document.createElement('button');
+  visBtn.className = 'e7-vis-btn' + (group.visible ? ' on' : '');
+  visBtn.textContent = group.visible ? 'Show' : 'Hide';
+  visBtn.addEventListener('click', () => {
+    group.visible = !group.visible;
+    visBtn.textContent = group.visible ? 'Show' : 'Hide';
+    visBtn.className = 'e7-vis-btn' + (group.visible ? ' on' : '');
+    renderE7Layers();
+    updateE7Json();
+  });
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'e7-del-btn';
+  delBtn.textContent = '×';
+  delBtn.title = 'Delete group';
+  delBtn.addEventListener('click', () => {
+    removeGroupLayers(group.id);
+    e7Groups = e7Groups.filter(g => g.id !== group.id);
+    card.remove();
+    updateE7Json();
+  });
+
+  header.append(dot, nameInput, visBtn, delBtn);
+
+  // Points textarea
+  const ta = document.createElement('textarea');
+  ta.className = 'e7-points-area';
+  ta.placeholder = 'E, N — one point per line\ne.g.  1.5, -2.3';
+  ta.value = pointsToText(group.points);
+  ta.addEventListener('input', () => {
+    group.points = parsePointsText(ta.value);
+    renderE7Layers();
+    updateE7Json();
+  });
+
+  card.append(header, ta);
+  container.appendChild(card);
+}
+
+// ── Mapbox layer render ────────────────────────────────────────────────────────
+function removeGroupLayers(groupId) {
+  const fillId = `e7-fill-${groupId}`;
+  const lineId = `e7-line-${groupId}`;
+  const srcId  = `e7-src-${groupId}`;
+  if (map.getLayer(fillId)) map.removeLayer(fillId);
+  if (map.getLayer(lineId)) map.removeLayer(lineId);
+  if (map.getSource(srcId)) map.removeSource(srcId);
+}
+
+function renderE7Layers() {
+  e7Groups.forEach(group => {
+    const fillId  = `e7-fill-${group.id}`;
+    const lineId  = `e7-line-${group.id}`;
+    const srcId   = `e7-src-${group.id}`;
+    const colour  = GROUP_COLOURS[(group.id - 1) % GROUP_COLOURS.length];
+    const geojson = (group.visible && group.points.length >= 3)
+      ? groupToGeoJson(group)
+      : emptyFeature();
+
+    if (map.getSource(srcId)) {
+      map.getSource(srcId).setData(geojson);
+    } else {
+      map.addSource(srcId, { type: 'geojson', data: geojson });
+      map.addLayer({ id: fillId, type: 'fill', source: srcId, paint: { 'fill-color': colour, 'fill-opacity': 0.28 } });
+      map.addLayer({ id: lineId, type: 'line', source: srcId, paint: { 'line-color': colour, 'line-width': 2 } });
+    }
+  });
+}
+
+// ── Centre pivot marker ────────────────────────────────────────────────────────
+function placeCentreMarker() {
+  const [lat, lon] = enuToLatLon(e7Centre.e, e7Centre.n);
+
+  if (e7CentreMarker) {
+    e7CentreMarker.setLngLat([lon, lat]);
+    return;
+  }
+
+  const el = document.createElement('div');
+  el.title = 'Drag to move pivot';
+  el.style.cssText = [
+    'width:14px','height:14px','background:#f59e0b',
+    'border:2px solid #fff','border-radius:2px',
+    'transform:rotate(45deg)','cursor:move',
+    'box-shadow:0 0 8px rgba(0,0,0,0.7)'
+  ].join(';');
+
+  e7CentreMarker = new mapboxgl.Marker({ element: el, draggable: true })
+    .setLngLat([lon, lat])
+    .addTo(map);
+
+  e7CentreMarker.on('drag', () => {
+    const ll = e7CentreMarker.getLngLat();
+    const [e, n] = latLonToEnu(ll.lat, ll.lng);
+    e7Centre = { e, n };
+    renderE7Layers();
+    updateCentreDisplay();
+    updateE7Json();
+  });
+}
+
+function updateCentreDisplay() {
+  document.getElementById('e7-ce').textContent = e7Centre.e.toFixed(2) + ' m';
+  document.getElementById('e7-cn').textContent = e7Centre.n.toFixed(2) + ' m';
+}
+
+// ── JSON output ────────────────────────────────────────────────────────────────
+function updateE7Json() {
+  if (!pinLatLon) return;
+  const out = {
+    home: { lat: pinLatLon.lat, lon: pinLatLon.lon },
+    centre_offset_enu: { east_m: +e7Centre.e.toFixed(3), north_m: +e7Centre.n.toFixed(3) },
+    rotation_deg: +e7Rotation.toFixed(1),
+    scale: +e7Scale.toFixed(3),
+    groups: e7Groups
+      .filter(g => g.visible && g.points.length >= 3)
+      .map(g => ({
+        name: g.name,
+        polygon_gps: g.points.map(([e, n]) => {
+          const [te, tn] = transformPoint(e, n);
+          const [lat, lon] = enuToLatLon(te, tn);
+          return [+lat.toFixed(7), +lon.toFixed(7)];
+        }),
+      })),
+  };
+  document.getElementById('e7-json-out').textContent = JSON.stringify(out, null, 2);
+}
+
+// ── Slider listeners ───────────────────────────────────────────────────────────
+document.getElementById('e7-rotation').addEventListener('input', e => {
+  e7Rotation = parseFloat(e.target.value);
+  document.getElementById('e7-rotation-val').textContent = e7Rotation.toFixed(1) + '°';
+  renderE7Layers();
+  updateE7Json();
+});
+
+document.getElementById('e7-scale').addEventListener('input', e => {
+  e7Scale = parseFloat(e.target.value);
+  document.getElementById('e7-scale-val').textContent = e7Scale.toFixed(2) + '×';
+  renderE7Layers();
+  updateE7Json();
+});
+
+// ── Add group button ───────────────────────────────────────────────────────────
+document.getElementById('e7-add-group').addEventListener('click', () => {
+  createGroup(`Group ${e7GroupIdCounter + 1}`, []);
+  renderE7Layers();
+  updateE7Json();
+});
+
+// ── Copy JSON ──────────────────────────────────────────────────────────────────
+document.getElementById('e7-copy-btn').addEventListener('click', () => {
+  const text = document.getElementById('e7-json-out').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('e7-copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy JSON'; }, 1500);
+  });
+});
+</script>
+</body>
+</html>

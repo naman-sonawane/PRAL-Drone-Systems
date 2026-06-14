@@ -1,0 +1,42 @@
+top down survey
+360 mapping 
+navigate to interest points
+- bridge
+- eng sign
+
+path optimization + variety shots 
+- move up verticals + landscape (basic path)
+- zoom out from eng sign (path optimizer)
+- zoom into eng sign
+- pan + move into eng sign (interest point + path optimized)
+
+(4) survey
+- move to each corner as one shot, pause, new recording. 4 shots total. first shot is from bottom left to top left corner, then top left to top right corner, then top right to bottom right corner, the bottom right to bottom left corner
+(1) - 360 around the entire building, move gimbal & circle around, to keep building centered.
+(3) interest point
+- start at home position, first shot fly up get top down view by moving gimbal, navigate to interest point coordinates, descend, scan area, zoom out
+(9) planned shots: each shot includes path (zoom, pan, zoom+pan) & interest point (bridge, eng sign, flowers next to staircase)
+
+run:
+STAGE 1
+python pipeline/stage1b/server.py   
+
+STAGE 2
+streamlit run pipeline/visualize_stage2.py
+
+stage 3
+streamlit run pipeline/visualize_stage3.py                        
+
+stage4
+python3.12 pipeline/stage4_visualize.py   
+
+TODO
+stage 1: 
+stage 2: the last occupancy map is not looking like an occupancy map
+stage 3: 
+stage 4: 
+stage 5: ray
+
+
+
+keys exposed: google maps + world

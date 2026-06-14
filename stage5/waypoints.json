@@ -1,0 +1,102 @@
+[
+  {
+    "idx": 0,
+    "lat": 43.4693372,
+    "lon": -80.5421027,
+    "alt": 15.0,
+    "yaw": 280.0,
+    "pitch": -15.0,
+    "shot_type": "orbit",
+    "value": 0.752
+  },
+  {
+    "idx": 1,
+    "lat": 43.4692077,
+    "lon": -80.5421714,
+    "alt": 18.3,
+    "yaw": 302.2,
+    "pitch": -15.0,
+    "shot_type": "orbit",
+    "value": 0.85
+  },
+  {
+    "idx": 2,
+    "lat": 43.4691068,
+    "lon": -80.5423021,
+    "alt": 21.7,
+    "yaw": 324.4,
+    "pitch": -25.0,
+    "shot_type": "reveal",
+    "value": 0.883
+  },
+  {
+    "idx": 3,
+    "lat": 43.4690493,
+    "lon": -80.5424755,
+    "alt": 25.0,
+    "yaw": 346.7,
+    "pitch": -15.0,
+    "shot_type": "orbit",
+    "value": 0.648
+  },
+  {
+    "idx": 4,
+    "lat": 43.469044,
+    "lon": -80.5426659,
+    "alt": 28.3,
+    "yaw": 8.9,
+    "pitch": -15.0,
+    "shot_type": "orbit",
+    "value": 0.694
+  },
+  {
+    "idx": 5,
+    "lat": 43.4690914,
+    "lon": -80.542845,
+    "alt": 31.7,
+    "yaw": 31.1,
+    "pitch": -25.0,
+    "shot_type": "reveal",
+    "value": 0.852
+  },
+  {
+    "idx": 6,
+    "lat": 43.4691847,
+    "lon": -80.5429861,
+    "alt": 35.0,
+    "yaw": 53.3,
+    "pitch": -10.0,
+    "shot_type": "push_in",
+    "value": 0.791
+  },
+  {
+    "idx": 7,
+    "lat": 43.4693098,
+    "lon": -80.5430683,
+    "alt": 38.3,
+    "yaw": 75.6,
+    "pitch": -15.0,
+    "shot_type": "orbit",
+    "value": 0.895
+  },
+  {
+    "idx": 8,
+    "lat": 43.4694484,
+    "lon": -80.5430794,
+    "alt": 41.7,
+    "yaw": 97.8,
+    "pitch": -70.0,
+    "shot_type": "top_down",
+    "value": 0.795
+  },
+  {
+    "idx": 9,
+    "lat": 43.4695797,
+    "lon": -80.5430177,
+    "alt": 45.0,
+    "yaw": 120.0,
+    "pitch": -15.0,
+    "shot_type": "orbit",
+    "value": 0.857
+  }
+]

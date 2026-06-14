@@ -1,0 +1,42 @@
+{
+  "r": 132738.5,
+  "z_orbit": 45500.0,
+  "aoi_centroid": [
+    -41600.26171875,
+    41507.6796875
+  ],
+  "control_points": [
+    {
+      "angle_deg": 0.0,
+      "delta_r": 0.0
+    },
+    {
+      "angle_deg": 45.0,
+      "delta_r": -2.4
+    },
+    {
+      "angle_deg": 90.0,
+      "delta_r": 0.0
+    },
+    {
+      "angle_deg": 135.0,
+      "delta_r": -4.4
+    },
+    {
+      "angle_deg": 180.0,
+      "delta_r": 0.0
+    },
+    {
+      "angle_deg": 225.0,
+      "delta_r": 0.0
+    },
+    {
+      "angle_deg": 270.0,
+      "delta_r": 4.3
+    },
+    {
+      "angle_deg": 315.0,
+      "delta_r": -4.5
+    }
+  ]
+}
