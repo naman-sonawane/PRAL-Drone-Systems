@@ -114,6 +114,23 @@ def _voxel_traversal(
     return cells
 
 
+def _points_in_polygon(px: np.ndarray, py: np.ndarray, poly: np.ndarray) -> np.ndarray:
+    """Vectorized even-odd ray-cast: which (px, py) lie inside ring ``poly``."""
+    px = np.asarray(px, float)
+    py = np.asarray(py, float)
+    inside = np.zeros(px.shape, dtype=bool)
+    n = len(poly)
+    xj, yj = poly[-1, 0], poly[-1, 1]
+    for i in range(n):
+        xi, yi = poly[i, 0], poly[i, 1]
+        cond = ((yi > py) != (yj > py)) & (
+            px < (xj - xi) * (py - yi) / (yj - yi + 1e-12) + xi
+        )
+        inside ^= cond
+        xj, yj = xi, yi
+    return inside
+
+
 # ---------------------------------------------------------------------------
 # Scene
 # ---------------------------------------------------------------------------
@@ -331,6 +348,88 @@ class VoxelScene:
             labels=labels,
             building_height=float(height),
             centroid_enu=centroid,
+            orbit_radius=float(r),
+        )
+        scene._compute_surface()
+        scene._compute_occlusion()
+        return scene
+
+    @classmethod
+    def from_polygon(
+        cls,
+        polygon_enu: np.ndarray,
+        height: float,
+        *,
+        voxel_size: float = 5.0,
+        margin: float = 4.0,
+        vfov_deg: float = 53.0,
+        n_trees: int = 4,
+        n_poles: int = 2,
+        seed: int = 0,
+    ) -> "VoxelScene":
+        """Build a scene by extruding an arbitrary footprint polygon.
+
+        Same products as :meth:`make`, but the building is the vertical
+        extrusion of ``polygon_enu`` (an ``[n, 2]`` ring of E/N meters) instead
+        of a procedural box. Used to fly real OSM building footprints (e.g.
+        Waterloo E7) through the pipeline. The polygon is recentered so its
+        centroid sits at the ENU origin, matching the orbit convention.
+        """
+        poly = np.asarray(polygon_enu, dtype=float)[:, :2]
+        if np.allclose(poly[0], poly[-1]):
+            poly = poly[:-1]
+        centroid_xy = poly.mean(axis=0)
+        poly = poly - centroid_xy  # recenter footprint centroid -> origin
+
+        rng = np.random.default_rng(seed)
+        vs = float(voxel_size)
+        reach = float(np.max(np.linalg.norm(poly, axis=1)))
+        # Standoff must fit the building vertically (VFOV framing) AND clear the
+        # footprint horizontally -- a wide building needs more than the
+        # height-only radius, so take the larger of the two.
+        r_vert = (height / 2.0 + margin) / np.tan(np.radians(vfov_deg) / 2.0)
+        r = max(r_vert, 1.5 * reach + margin)
+        half_extent = r + reach + 6.0
+        origin = np.array([-half_extent, -half_extent, 0.0])
+        nx = ny = int(np.ceil(2 * half_extent / vs))
+        nz = int(np.ceil((height + 2 * vs) / vs))
+        labels = np.zeros((nx, ny, nz), dtype=np.int16)
+        labels[:, :, 0] = int(VoxelLabel.GROUND)
+
+        # Fill every column whose ENU center falls inside the footprint.
+        kz_top = min(int(np.ceil(height / vs)) + 1, nz)
+        ii = (np.arange(nx) + 0.5) * vs + origin[0]
+        jj = (np.arange(ny) + 0.5) * vs + origin[1]
+        EE, NN = np.meshgrid(ii, jj, indexing="ij")
+        inside = _points_in_polygon(EE.ravel(), NN.ravel(), poly).reshape(nx, ny)
+        for i, j in np.argwhere(inside):
+            labels[i, j, 1:kz_top] = int(VoxelLabel.BUILDING)
+
+        # A few obstacles scattered in the orbit annulus (trees/poles).
+        def place(e: float, n: float, top_h: float, label: VoxelLabel) -> None:
+            i = int(np.floor((e - origin[0]) / vs))
+            j = int(np.floor((n - origin[1]) / vs))
+            ktop = int(np.ceil(top_h / vs))
+            if 0 <= i < nx and 0 <= j < ny:
+                for k in range(1, min(ktop + 1, nz)):
+                    if labels[i, j, k] == int(VoxelLabel.EMPTY):
+                        labels[i, j, k] = int(label)
+
+        for _ in range(n_trees):
+            a = rng.uniform(0, 2 * np.pi)
+            rad = rng.uniform(reach + vs, r * 0.95)
+            place(rad * np.cos(a), rad * np.sin(a), rng.uniform(6.0, 14.0), VoxelLabel.TREE)
+        for _ in range(n_poles):
+            a = rng.uniform(0, 2 * np.pi)
+            rad = rng.uniform(reach + vs, r * 0.95)
+            place(rad * np.cos(a), rad * np.sin(a), rng.uniform(8.0, 16.0), VoxelLabel.POLE)
+
+        scene = cls(
+            voxel_size=vs,
+            origin_enu=origin,
+            labels=labels,
+            building_height=float(height),
+            centroid_enu=np.array([0.0, 0.0, 0.0]),
             orbit_radius=float(r),
         )
         scene._compute_surface()
