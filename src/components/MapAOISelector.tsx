@@ -13,9 +13,13 @@ import "leaflet/dist/leaflet.css";
 import type { AOI, LatLng } from "@/lib/types";
 import { DEFAULT_AOI } from "@fixtures/index";
 
+type LeafletIconDefaultPrototype = typeof L.Icon.Default.prototype & {
+  _getIconUrl?: () => string;
+};
+
 // Fix Leaflet's default icon paths in Next.js which cause 404s
 if (typeof window !== "undefined") {
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as LeafletIconDefaultPrototype)._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
     iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
