@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PRAL · E7 Mission Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{--cyan:#22d3ee;--lime:#a3e635;--amber:#fbbf24;--pink:#f472b6;--dim:#5f6f8f;--red:#fb7185;--green:#34d399}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#05070e;color:#cdd9f0;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  #map{position:absolute;inset:0;background:#05070e}
+  .leaflet-container{background:#05070e}
+  /* dark, cinematic overlays */
+  #top{position:absolute;top:0;left:0;right:0;z-index:1000;height:56px;
+    background:linear-gradient(180deg,#070b16ee,#070b1600);display:flex;align-items:center;
+    gap:16px;padding:0 18px;pointer-events:none}
+  #top .logo{font-weight:700;letter-spacing:3px;color:#fff;font-size:15px}
+  #top .logo b{color:var(--cyan)}
+  #top .sub{color:var(--dim);font-size:11px;letter-spacing:1px}
+  .spacer{flex:1}
+  .live{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;color:var(--red)}
+  .live .dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 10px var(--red);animation:pulse 1.1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  #replay{pointer-events:auto;background:#10203a;border:1px solid var(--cyan);color:var(--cyan);
+    padding:7px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:1px}
+  #replay:hover{background:var(--cyan);color:#05070e}
+
+  #panel{position:absolute;top:70px;left:14px;z-index:1000;width:262px;
+    background:#0b1020e6;border:1px solid #1c2740;border-radius:11px;padding:14px;backdrop-filter:blur(4px)}
+  #panel h2{margin:0 0 2px;font-size:14px;color:#fff;letter-spacing:.5px}
+  #panel .osm{font-size:10px;color:var(--dim);margin-bottom:11px}
+  .stat{display:flex;justify-content:space-between;font-size:11.5px;margin:5px 0}
+  .stat .k{color:var(--dim)} .stat .v{color:var(--lime)}
+  .barwrap{height:5px;background:#16243e;border-radius:3px;margin:9px 0 13px;overflow:hidden}
+  #cov{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--lime));transition:width .2s}
+  .leg{display:flex;flex-direction:column;gap:5px;margin-top:11px;border-top:1px dashed #1c2740;padding-top:10px}
+  .leg div{font-size:10.5px;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .leg i{width:18px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block}
+
+  /* phase toggles */
+  .phases{margin-top:11px;border-top:1px dashed #1c2740;padding-top:10px}
+  .phases .ttl{font-size:9.5px;letter-spacing:1.5px;color:var(--dim);margin-bottom:7px}
+  .chip{display:flex;align-items:center;gap:8px;font-size:11px;padding:5px 8px;margin:4px 0;
+    border:1px solid #1c2740;border-radius:7px;cursor:pointer;user-select:none;transition:.15s}
+  .chip:hover{background:#13203a}
+  .chip.off{opacity:.34}
+  .chip .sw{width:12px;height:12px;border-radius:3px;flex:none}
+  .chip .nm{flex:1;color:#cdd9f0}
+  .chip .ct{color:var(--dim);font-size:10px}
+
+  /* POI editor */
+  #poibtn{pointer-events:auto;background:#1a1030;border:1px solid var(--pink);color:var(--pink);
+    padding:7px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:1px}
+  #poibtn.active{background:var(--pink);color:#05070e}
+  #poipanel{position:absolute;top:70px;right:14px;z-index:1000;width:236px;display:none;
+    background:#0b1020e6;border:1px solid #2a1c40;border-radius:11px;padding:14px;backdrop-filter:blur(4px)}
+  #poipanel.show{display:block}
+  #poipanel h2{margin:0 0 2px;font-size:13px;color:#fff;letter-spacing:.5px}
+  #poipanel .hint{font-size:10px;color:var(--dim);margin-bottom:10px;line-height:1.5}
+  .ctl{display:flex;align-items:center;justify-content:space-between;font-size:11px;margin:7px 0;color:var(--dim)}
+  .ctl input{width:64px;background:#10182c;border:1px solid #2a1c40;color:var(--pink);
+    border-radius:5px;padding:3px 6px;font-family:inherit;font-size:11px;text-align:right}
+  #poilist{margin:10px 0 0;max-height:188px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+  .poirow{display:flex;align-items:center;gap:7px;font-size:10.5px;background:#120b22;
+    border:1px solid #2a1c40;border-radius:6px;padding:5px 8px}
+  .poirow .ix{color:var(--pink);font-weight:700}
+  .poirow .co{color:var(--dim);flex:1;font-size:9.5px}
+  .poirow .rm{color:var(--red);cursor:pointer;padding:0 3px}
+  .poiact{display:flex;gap:7px;margin-top:11px}
+  .poiact button{flex:1;background:#10182c;border:1px solid #2a1c40;color:#9fb4d6;
+    padding:6px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:.5px}
+  .poiact button:hover{background:#16233e}
+  .poirow .poi-pin{width:11px;height:11px;border-radius:50%;background:var(--pink);box-shadow:0 0 7px var(--pink)}
+  .poi-marker{width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;
+    background:radial-gradient(circle,#fff,#f472b6 65%,transparent 75%);box-shadow:0 0 12px #f472b6}
+
+  #shotbox{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:1000;
+    display:flex;align-items:center;gap:14px;background:#0b1426dd;border:1px solid #1c2740;
+    border-radius:24px;padding:9px 20px}
+  #shotbox .now{color:var(--amber);font-size:13px;letter-spacing:3px;text-transform:uppercase;min-width:84px;text-align:center}
+  #shotbox .clk{color:var(--cyan);font-size:13px}
+  #shotbox .wp{color:var(--dim);font-size:11px}
+
+  /* drone marker */
+  .drone{width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+    background:radial-gradient(circle,#ffffff,#22d3ee 60%,transparent 72%);
+    box-shadow:0 0 16px #22d3ee,0 0 30px #22d3ee99}
+  .drone:before{content:"";position:absolute;inset:6px;border-radius:50%;background:#fff}
+  .pin{width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  .leaflet-bar a{background:#0b1020;color:#9fb4d6;border-color:#1c2740}
+  .leaflet-bar a:hover{background:#16233e}
+  .leaflet-control-attribution{background:#0b1020aa!important;color:#5f6f8f!important}
+  .leaflet-control-attribution a{color:#7d93b8!important}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="top">
+  <div class="logo"><b>PRAL</b> · DRONE SYSTEMS</div>
+  <div class="sub" id="bldg">AUTONOMOUS MISSION · loading…</div>
+  <div class="spacer"></div>
+  <div class="live"><span class="dot"></span>LIVE</div>
+  <button id="poibtn">＋ POI</button>
+  <button id="replay">▶ REPLAY FLIGHT</button>
+</div>
+
+<div id="panel">
+  <h2 id="pname">—</h2>
+  <div class="osm" id="posm"></div>
+  <div class="stat"><span class="k">orbit radius</span><span class="v" id="sR">—</span></div>
+  <div class="stat"><span class="k">trajectory</span><span class="v" id="sWP">—</span></div>
+  <div class="stat"><span class="k">shot types</span><span class="v" id="sSH">—</span></div>
+  <div class="stat"><span class="k">close-ups</span><span class="v" id="sCU">—</span></div>
+  <div class="stat"><span class="k">min clearance</span><span class="v" id="sCL">—</span></div>
+  <div class="stat"><span class="k">surface coverage</span><span class="v" id="sCOVt">0%</span></div>
+  <div class="barwrap"><div id="cov"></div></div>
+  <div class="leg">
+    <div><i style="border-color:#22d3ee"></i> footprint (OSM)</div>
+    <div><i style="border-color:#38bdf8;border-top-style:dashed"></i> 360° survey orbit</div>
+    <div><i style="border-color:#f472b6"></i> occlusion close-ups</div>
+  </div>
+  <div class="phases">
+    <div class="ttl">FLIGHT PHASES — click to toggle</div>
+    <div id="chips"></div>
+  </div>
+</div>
+
+<div id="poipanel">
+  <h2>◆ Points of Interest</h2>
+  <div class="hint">Click anywhere on the map to drop a POI. Each adds a short
+    extra fly-round so the drone grabs a few more shots there.</div>
+  <div class="ctl"><span>orbit radius</span><input id="poiR" type="number" value="18" min="5" max="80" step="1"> m</div>
+  <div class="ctl"><span>altitude</span><input id="poiA" type="number" value="14" min="2" max="60" step="1"> m</div>
+  <div class="ctl"><span>extra rounds</span><input id="poiN" type="number" value="1" min="1" max="3" step="1"></div>
+  <div id="poilist"></div>
+  <div class="poiact">
+    <button id="poiclear">CLEAR ALL</button>
+    <button id="poiexport">⬇ EXPORT JSON</button>
+  </div>
+</div>
+
+<div id="shotbox">
+  <span class="clk" id="clk">00:00</span>
+  <span class="now" id="shotNow">STANDBY</span>
+  <span class="wp" id="wp">waypoint 0 / 0</span>
+</div>
+
+<script>
+window.PRAL_GEO = {"name":"Engineering 7 (Pearl Sullivan Engineering Building)","osm_id":382735686,"home":[43.4729944,-80.5394387],"height_m":31.2,"footprint":[[43.4732496,-80.5399243],[43.4733794,-80.5395818],[43.4730439,-80.5393405],[43.4730398,-80.5393375],[43.4730648,-80.5392611],[43.4731133,-80.5391025],[43.4731545,-80.5389971],[43.4731374,-80.5389848],[43.473121,-80.538973],[43.4730794,-80.5390797],[43.4730301,-80.5392366],[43.4730007,-80.5393097],[43.4726494,-80.5390568],[43.4725261,-80.5393824],[43.4726699,-80.5394858],[43.4726578,-80.5395172],[43.4726167,-80.5396262],[43.4726066,-80.5396529],[43.4731329,-80.5400361],[43.4731622,-80.5399586],[43.4731912,-80.5398823],[43.4732496,-80.5399243]],"orbit":[[43.4729944,-80.5384081],[43.473068,-80.5384131],[43.4731408,-80.5384279],[43.4732123,-80.5384525],[43.4732816,-80.5384865],[43.4733482,-80.5385298],[43.4734114,-80.5385818],[43.4734705,-80.538642],[43.4735251,-80.5387099],[43.4735746,-80.5387849],[43.4736185,-80.5388661],[43.4736563,-80.5389529],[43.4736878,-80.5390443],[43.4737126,-80.5391395],[43.4737305,-80.5392376],[43.4737413,-80.5393377],[43.473745,-80.5394387],[43.4737413,-80.5395397],[43.4737305,-80.5396398],[43.4737126,-80.5397379],[43.4736878,-80.5398331],[43.4736563,-80.5399245],[43.4736185,-80.5400113],[43.4735746,-80.5400925],[43.4735251,-80.5401675],[43.4734705,-80.5402354],[43.4734114,-80.5402956],[43.4733482,-80.5403476],[43.4732816,-80.5403909],[43.4732123,-80.5404249],[43.4731408,-80.5404495],[43.473068,-80.5404643],[43.4729944,-80.5404693],[43.4729208,-80.5404643],[43.472848,-80.5404495],[43.4727765,-80.5404249],[43.4727072,-80.5403909],[43.4726406,-80.5403476],[43.4725774,-80.5402956],[43.4725182,-80.5402354],[43.4724637,-80.5401674],[43.4724142,-80.5400925],[43.4723703,-80.5400113],[43.4723325,-80.5399245],[43.472301,-80.5398331],[43.4722762,-80.5397379],[43.4722583,-80.5396398],[43.4722475,-80.5395397],[43.4722438,-80.5394387],[43.4722475,-80.5393377],[43.4722583,-80.5392376],[43.4722762,-80.5391395],[43.472301,-80.5390443],[43.4723325,-80.5389529],[43.4723703,-80.5388661],[43.4724142,-80.5387849],[43.4724637,-80.53871],[43.4725182,-80.538642],[43.4725774,-80.5385818],[43.4726406,-80.5385298],[43.4727072,-80.5384865],[43.4727765,-80.5384525],[43.472848,-80.5384279],[43.4729208,-80.5384131]],"orbit_radius_m":83.4,"trajectory":[[43.4733697,-80.5403312],[43.4735251,-80.5401675],[43.4736444,-80.539954],[43.4737194,-80.5397054],[43.473745,-80.5394387],[43.4735198,-80.5394387],[43.4733659,-80.5389286],[43.4729944,-80.5387173],[43.4726229,-80.5389286],[43.472469,-80.5394387],[43.4726229,-80.5399488],[43.4729944,-80.5401601],[43.4733659,-80.5399488],[43.4731761,-80.5397847],[43.4730411,-80.5396611],[43.4729944,-80.5394387],[43.4729511,-80.5395993],[43.4729511,-80.5395993],[43.4730411,-80.5396611],[43.4737194,-80.539172],[43.4736444,-80.5389234],[43.4735251,-80.5387099],[43.4733697,-80.5385462],[43.4731887,-80.5384432],[43.4729944,-80.5384081],[43.4728001,-80.5384432],[43.4726191,-80.5385462],[43.4724637,-80.53871],[43.4723444,-80.5389234],[43.4722694,-80.539172],[43.4722438,-80.5394387],[43.4722694,-80.5397054],[43.4723444,-80.539954],[43.4724637,-80.5401674],[43.4726191,-80.5403312],[43.4728001,-80.5404342],[43.4729944,-80.5404693],[43.4731887,-80.5404342]],"trajectory_alt":[15.6,15.6,15.6,15.6,15.6,46.2,46.2,46.2,46.2,46.2,46.2,46.2,46.2,39.6,39.6,56.2,39.6,9.6,9.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6,15.6],"phases":["orbit","orbit","orbit","orbit","orbit","survey","survey","survey","survey","survey","survey","survey","survey","survey","survey","survey","survey","capture","capture","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit","orbit"],"phase_defs":[{"key":"survey","label":"SURVEY \u00b7 top-down","color":"#a3e635","min_frac":0.7},{"key":"orbit","label":"360 ORBIT \u00b7 sides","color":"#38bdf8","min_frac":0.32},{"key":"capture","label":"CAPTURE \u00b7 detail","color":"#fbbf24","min_frac":0.0}],"shots":["orbit","flyby","reveal","push_in","top_down","parallax","dronie","orbit","flyby","reveal","push_in","top_down","parallax","dronie","orbit","flyby","reveal","push_in","top_down","parallax","dronie","orbit","flyby","reveal","push_in","top_down","parallax","dronie","orbit","flyby","reveal","push_in","top_down","parallax","dronie","orbit","flyby","reveal"],"closeups":[{"from":[43.4731761,-80.5397847],"to":[43.4731761,-80.5399308]},{"from":[43.4730411,-80.5396611],"to":[43.4730411,-80.5398072]},{"from":[43.4730411,-80.5396611],"to":[43.4730411,-80.5398072]},{"from":[43.4730861,-80.5396611],"to":[43.4730861,-80.5398072]},{"from":[43.4730861,-80.5396611],"to":[43.4730861,-80.5398072]},{"from":[43.4731311,-80.5396611],"to":[43.4731311,-80.5398072]},{"from":[43.4731311,-80.5396611],"to":[43.4731311,-80.5398072]},{"from":[43.4729511,-80.5395993],"to":[43.4729511,-80.5397454]},{"from":[43.4729511,-80.5395993],"to":[43.4729511,-80.5397454]},{"from":[43.4729961,-80.5395993],"to":[43.4729961,-80.5397454]},{"from":[43.4729961,-80.5395993],"to":[43.4729961,-80.5397454]},{"from":[43.4730411,-80.5395993],"to":[43.4730411,-80.5397454]}],"viewpoints":[[43.4729944,-80.5384081],[43.4731887,-80.5384432],[43.4733697,-80.5385462],[43.4735251,-80.5387099],[43.4736444,-80.5389234],[43.4737194,-80.539172],[43.473745,-80.5394387],[43.4737194,-80.5397054],[43.4736444,-80.539954],[43.4735251,-80.5401675],[43.4733697,-80.5403312],[43.4731887,-80.5404342],[43.4729944,-80.5404693],[43.4728001,-80.5404342],[43.4726191,-80.5403312],[43.4724637,-80.5401674],[43.4723444,-80.539954],[43.4722694,-80.5397054],[43.4722438,-80.5394387],[43.4722694,-80.539172],[43.4723444,-80.5389234],[43.4724637,-80.53871],[43.4726191,-80.5385462],[43.4728001,-80.5384432],[43.4729944,-80.5394387],[43.4729944,-80.5387173],[43.4733659,-80.5389286],[43.4735198,-80.5394387],[43.4733659,-80.5399488],[43.4729944,-80.5401601],[43.4726229,-80.5399488],[43.472469,-80.5394387],[43.4726229,-80.5389286],[43.4731761,-80.5397847],[43.4730411,-80.5396611],[43.4730411,-80.5396611],[43.4730861,-80.5396611],[43.4730861,-80.5396611],[43.4731311,-80.5396611],[43.4731311,-80.5396611],[43.4729511,-80.5395993],[43.4729511,-80.5395993],[43.4729961,-80.5395993],[43.4729961,-80.5395993],[43.4730411,-80.5395993]],"meta":{"coverage":0.889,"n_waypoints":38,"n_shots":7,"n_closeups":12,"battery_used":0.243,"min_clearance":1.73,"collided":false}};
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const G = window.PRAL_GEO;
+if(!G){ document.body.innerHTML='<p style="padding:40px;color:#fff">geo_trace.js missing — run <code>python -m pral.geo_export</code></p>'; throw new Error('no geo'); }
+
+// ---- map ----
+const map = L.map('map',{zoomControl:true,attributionControl:true}).setView(G.home, 18);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© OpenStreetMap © CARTO · footprint OSM way '+G.osm_id, maxZoom:21, subdomains:'abcd'
+}).addTo(map);
+
+// ---- static layers ----
+const footprint = L.polygon(G.footprint,{color:'#22d3ee',weight:2,fillColor:'#22d3ee',fillOpacity:0.14}).addTo(map);
+L.polyline([...G.orbit, G.orbit[0]],{color:'#38bdf8',weight:1.4,dashArray:'5 7',opacity:0.7}).addTo(map);
+
+// close-up spurs (revealed during flight)
+const spurs = G.closeups.map(cu=>{
+  const ln=L.polyline([cu.from,cu.to],{color:'#f472b6',weight:1.3,opacity:0}).addTo(map);
+  const pin=L.marker(cu.to,{icon:L.divIcon({className:'',html:'<div class="pin"></div>'})}).addTo(map);
+  pin.setOpacity(0); return {ln,pin};
+});
+
+const TRAJ = G.trajectory;
+
+// ---- flight phases (survey / orbit / capture) ----
+// Source of truth is G.phases from pral.geo_export; fall back to classifying by
+// altitude here so an older trace still renders.
+const PHASE_DEFS = G.phase_defs || [
+  {key:'survey', label:'SURVEY · top-down', color:'#a3e635', min_frac:0.70},
+  {key:'orbit',  label:'360 ORBIT · sides', color:'#38bdf8', min_frac:0.32},
+  {key:'capture',label:'CAPTURE · detail',  color:'#fbbf24', min_frac:0.0},
+];
+const PCOLOR = Object.fromEntries(PHASE_DEFS.map(d=>[d.key,d.color]));
+function classify(alt){ const f=alt/G.height_m; for(const d of PHASE_DEFS){ if(f>=d.min_frac) return d.key; } return PHASE_DEFS[PHASE_DEFS.length-1].key; }
+const PHASES = G.phases || (G.trajectory_alt||[]).map(classify);
+
+// one static (dim) polyline per phase, built from the edges whose start waypoint
+// is in that phase — lets each "theoretical part" be drawn/toggled on its own.
+const phaseLayers = {};
+PHASE_DEFS.forEach(d=>{
+  const segs=[];
+  for(let i=0;i<TRAJ.length-1;i++){ if(PHASES[i]===d.key) segs.push([TRAJ[i],TRAJ[i+1]]); }
+  phaseLayers[d.key]=L.polyline(segs,{color:d.color,weight:2.5,opacity:0.45}).addTo(map);
+});
+
+// phase toggle chips
+const chips=document.getElementById('chips');
+PHASE_DEFS.forEach(d=>{
+  const n=PHASES.filter(p=>p===d.key).length;
+  const el=document.createElement('div'); el.className='chip';
+  el.innerHTML=`<span class="sw" style="background:${d.color}"></span>`+
+    `<span class="nm">${d.label}</span><span class="ct">${n} wp</span>`;
+  el.onclick=()=>{ el.classList.toggle('off');
+    if(el.classList.contains('off')) map.removeLayer(phaseLayers[d.key]);
+    else phaseLayers[d.key].addTo(map); };
+  chips.appendChild(el);
+});
+
+// trajectory (animated) — drawn on top, tinted by the current phase
+const traj = L.polyline([],{color:'#fbbf24',weight:3.5,opacity:0.98}).addTo(map);
+const drone = L.marker(TRAJ[0],{icon:L.divIcon({className:'',html:'<div class="drone"></div>'}),zIndexOffset:1000}).addTo(map);
+
+map.fitBounds(L.polyline(G.orbit).getBounds().pad(0.25));
+
+// ---- panel ----
+document.getElementById('bldg').textContent='AUTONOMOUS MISSION · '+G.name;
+document.getElementById('pname').textContent=G.name;
+document.getElementById('posm').textContent='OSM way '+G.osm_id+' · '+G.height_m+' m · Univ. of Waterloo';
+document.getElementById('sR').textContent=G.orbit_radius_m+' m';
+document.getElementById('sWP').textContent=G.meta.n_waypoints+' waypoints';
+document.getElementById('sSH').textContent=G.meta.n_shots+' distinct';
+document.getElementById('sCU').textContent=G.meta.n_closeups;
+document.getElementById('sCL').textContent=G.meta.min_clearance+' m'+(G.meta.collided?' ⚠':' ✓');
+
+// ---- animation ----
+const covEl=document.getElementById('cov'), covT=document.getElementById('sCOVt'),
+  shotNow=document.getElementById('shotNow'), wpEl=document.getElementById('wp'), clk=document.getElementById('clk');
+const FLIGHT=26; // seconds
+let t0=null, raf=null;
+function interp(arr,f){ const i=Math.min(arr.length-2,Math.floor(f)); const fr=f-i;
+  return [arr[i][0]+(arr[i+1][0]-arr[i][0])*fr, arr[i][1]+(arr[i+1][1]-arr[i][1])*fr]; }
+
+function frame(ts){
+  if(t0===null)t0=ts; const el=(ts-t0)/1000; const p=Math.min(1,el/FLIGHT);
+  const f=p*(TRAJ.length-1); const idx=Math.floor(f);
+
+  traj.setLatLngs(TRAJ.slice(0,idx+1).concat([interp(TRAJ,f)]));
+  traj.setStyle({color: PCOLOR[PHASES[Math.min(PHASES.length-1,idx)]] || '#fbbf24'});
+  drone.setLatLng(interp(TRAJ,f));
+
+  // reveal close-up spurs as we pass their nearest waypoint
+  spurs.forEach((s,k)=>{ const trigger=(k+0.5)/spurs.length; if(p>=trigger){ s.ln.setStyle({opacity:0.8}); s.pin.setOpacity(1); } });
+
+  covEl.style.width=(G.meta.coverage*100*p)+'%';
+  covT.textContent=(G.meta.coverage*100*p).toFixed(1)+'%';
+  shotNow.textContent='◉ '+(G.shots[Math.min(G.shots.length-1,idx)]||'');
+  wpEl.textContent='waypoint '+(idx+1)+' / '+TRAJ.length;
+  const s=Math.floor(el); clk.textContent='00:'+String(s).padStart(2,'0');
+
+  if(p<1) raf=requestAnimationFrame(frame);
+  else { shotNow.textContent='✓ COMPLETE'; document.getElementById('bldg').textContent='MISSION COMPLETE · '+G.meta.n_waypoints+' shots captured'; }
+}
+function play(){ if(raf)cancelAnimationFrame(raf); t0=null;
+  traj.setLatLngs([]); drone.setLatLng(TRAJ[0]);
+  spurs.forEach(s=>{s.ln.setStyle({opacity:0}); s.pin.setOpacity(0);});
+  raf=requestAnimationFrame(frame); }
+document.getElementById('replay').onclick=play;
+
+// ---- POI editor (mode A: client-side preview, shaped for pipeline hand-off) ----
+// Click the map to drop a point of interest; each draws a short extra orbit so
+// the drone grabs a few more shots there. Export emits the POIs in both GPS and
+// local ENU meters (about G.home) — the exact shape a future stage4 injection
+// would ingest to re-plan a real, geofence-checked detour (mode B).
+const M_PER_DEG_LAT=111320;
+const cosHome=Math.cos(G.home[0]*Math.PI/180);
+function enuToLatLon(east,north,lat){ return [lat+north/M_PER_DEG_LAT, G.home[1]+east/(M_PER_DEG_LAT*cosHome)]; }
+function latLonToEnu(lat,lon){ return [ (lon-G.home[1])*M_PER_DEG_LAT*cosHome, (lat-G.home[0])*M_PER_DEG_LAT ]; }
+
+const POIS=[]; let poiMode=false;
+const poiBtn=document.getElementById('poibtn'), poiPanel=document.getElementById('poipanel'),
+  poiList=document.getElementById('poilist');
+
+poiBtn.onclick=()=>{ poiMode=!poiMode;
+  poiBtn.classList.toggle('active',poiMode); poiPanel.classList.toggle('show',poiMode);
+  map.getContainer().style.cursor=poiMode?'crosshair':''; };
+
+function ringLatLngs(lat,lon,r,segments=28){
+  const [e0,n0]=latLonToEnu(lat,lon); const pts=[];
+  for(let k=0;k<=segments;k++){ const a=2*Math.PI*k/segments;
+    pts.push(enuToLatLon(e0+r*Math.cos(a), n0+r*Math.sin(a), lat)); }
+  return pts;
+}
+function renderPoiList(){
+  poiList.innerHTML='';
+  POIS.forEach((p,i)=>{
+    const row=document.createElement('div'); row.className='poirow';
+    row.innerHTML=`<span class="poi-pin"></span><span class="ix">P${i+1}</span>`+
+      `<span class="co">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} · r${p.r} · ${p.alt}m · ×${p.n}</span>`+
+      `<span class="rm" title="remove">✕</span>`;
+    row.querySelector('.rm').onclick=()=>{ map.removeLayer(p.ring); map.removeLayer(p.marker);
+      POIS.splice(i,1); renderPoiList(); };
+    poiList.appendChild(row);
+  });
+}
+function addPoi(lat,lon){
+  const r=+document.getElementById('poiR').value, alt=+document.getElementById('poiA').value,
+    n=+document.getElementById('poiN').value;
+  const ring=L.polyline(ringLatLngs(lat,lon,r),{color:'#f472b6',weight:1.8,opacity:0.9,dashArray:'4 5'}).addTo(map);
+  const marker=L.marker([lat,lon],{icon:L.divIcon({className:'',html:'<div class="poi-marker"></div>'})}).addTo(map);
+  POIS.push({lat,lon,r,alt,n,ring,marker}); renderPoiList();
+}
+map.on('click',e=>{ if(poiMode) addPoi(e.latlng.lat,e.latlng.lng); });
+
+document.getElementById('poiclear').onclick=()=>{
+  POIS.forEach(p=>{ map.removeLayer(p.ring); map.removeLayer(p.marker); });
+  POIS.length=0; renderPoiList(); };
+
+document.getElementById('poiexport').onclick=()=>{
+  const payload={ building:G.name, osm_id:G.osm_id, home:G.home,
+    pois: POIS.map((p,i)=>{ const [east,north]=latLonToEnu(p.lat,p.lon);
+      return { id:`poi_${String(i).padStart(3,'0')}`, lat:p.lat, lon:p.lon,
+        enu:[+east.toFixed(2),+north.toFixed(2)], orbit_radius_m:p.r,
+        altitude_m:p.alt, extra_rounds:p.n }; }) };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='pois.json'; a.click(); URL.revokeObjectURL(a.href);
+  console.log('POI export (feed to stage4_interest):',payload);
+};
+
+setTimeout(play, 600);
+</script>
+</body>
+</html>
