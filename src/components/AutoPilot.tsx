@@ -104,7 +104,12 @@ export function AutoPilot() {
               }, 3000);
             } else {
               // Fallback
-              const aoi = { lat: 37.7749, lng: -122.4194, radius_m: 100, label: "AutoPilot Target" };
+              const aoi = {
+                id: `aoi-autopilot-${pathname}`,
+                center: { lat: 37.7749, lng: -122.4194 },
+                radius_m: 100,
+                label: "AutoPilot Target",
+              };
               const mission = await api.createMission(aoi);
               setActiveMission({ ...mission, status: "processing" });
               router.push("/processing");
@@ -205,7 +210,7 @@ export function AutoPilot() {
                  setTimeout(() => exportBtn.click(), 3000);
                }, 2000);
              } else {
-               updateActiveMission({ status: "exporting" });
+               updateActiveMission({ status: "exported" });
                router.push("/export");
              }
           }
