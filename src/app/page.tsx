@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, easeOut, type Variants } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 
-const staggerContainer = {
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
@@ -15,9 +15,19 @@ const staggerContainer = {
   },
 };
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+const fadeUp: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 20,
+  },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
+      ease: easeOut,
+    },
+  },
 };
 
 export default function LandingPage() {
@@ -91,8 +101,11 @@ export default function LandingPage() {
           <motion.div
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-            className="absolute top-1/2 -translate-y-1/2 right-0 w-1/2 h-[800px] hidden lg:block opacity-90 pointer-events-none"
+transition={{
+  duration: 1,
+  delay: 0.2,
+  ease: easeOut,
+}}            className="absolute top-1/2 -translate-y-1/2 right-0 w-1/2 h-[800px] hidden lg:block opacity-90 pointer-events-none"
           >
             <div className="relative w-full h-full">
               {/* Replace src with your actual drone image (e.g. /hero-drone.png) */}
@@ -177,8 +190,10 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="relative w-full max-w-5xl mx-auto aspect-video rounded-sm overflow-hidden border border-line shadow-2xl bg-panel"
+transition={{
+  duration: 0.8,
+  ease: easeOut,
+}}              className="relative w-full max-w-5xl mx-auto aspect-video rounded-sm overflow-hidden border border-line shadow-2xl bg-panel"
             >
               {/* Replace with your actual interface mockup (e.g. /interface-mockup.png) */}
               <div className="w-full h-full border-2 border-dashed border-line-strong flex flex-col items-center justify-center text-ink-muted">
