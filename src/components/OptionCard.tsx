@@ -2,66 +2,89 @@
 
 import { clsx } from "clsx";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import type { ComponentType } from "react";
 
 interface OptionCardProps {
   label: string;
   description?: string;
-  icon?: React.ReactNode;
+  icon?: ComponentType<{ className?: string }>;
   selected?: boolean;
   loading?: boolean;
   onClick?: () => void;
-  aspect?: "square" | "wide";
+  aspect?: "square" | "wide" | "circle";
 }
 
 export function OptionCard({
   label,
   description,
-  icon,
+  icon: Icon,
   selected,
   loading,
   onClick,
   aspect = "square",
 }: OptionCardProps) {
+  if (aspect === "circle") {
+    return (
+      <motion.button
+        type="button"
+        onClick={onClick}
+        disabled={loading}
+        title={label}
+        whileTap={{ scale: 0.95 }}
+        className={clsx(
+          "relative flex items-center justify-center transition-colors duration-150 focus-ring rounded-full shrink-0",
+          "w-14 h-14 sm:w-16 sm:h-16 border-2",
+          selected
+            ? "border-accent bg-accent-muted text-accent"
+            : "border-line bg-panel-raised hover:border-line-strong hover:bg-panel text-ink",
+          loading && "pointer-events-none"
+        )}
+      >
+        {loading && (
+          <div className="absolute inset-0 skeleton-shimmer z-10 rounded-full overflow-hidden" />
+        )}
+        {Icon && <Icon className="w-6 h-6 sm:w-7 sm:h-7" />}
+        <span className="sr-only">{label}</span>
+      </motion.button>
+    );
+  }
+
   return (
     <motion.button
       type="button"
       onClick={onClick}
       disabled={loading}
-      whileTap={{ scale: 0.98 }}
+      whileTap={{ scale: 0.995 }}
       className={clsx(
-        "relative text-left rounded-2xl border-2 p-4 transition-all duration-200 focus-ring",
+        "relative text-left border p-4 transition-colors duration-150 focus-ring",
         aspect === "wide" ? "flex items-center gap-4" : "flex flex-col",
         selected
-          ? "border-pral-500 bg-pral-50/80 card-shadow"
-          : "border-border bg-surface-elevated hover:border-pral-300 hover:bg-pral-50/30",
+          ? ""
+          : "border-line bg-panel-raised hover:border-line-strong hover:bg-panel",
         loading && "pointer-events-none"
       )}
     >
       {loading && (
-        <div className="absolute inset-0 rounded-2xl skeleton-shimmer z-10" />
+        <div className="absolute inset-0 skeleton-shimmer z-10" />
       )}
 
-      {icon && (
-        <div
-          className={clsx(
-            "flex items-center justify-center rounded-xl bg-pral-100 text-pral-600 shrink-0",
-            aspect === "wide" ? "w-12 h-12" : "w-10 h-10 mb-3"
-          )}
-        >
-          {icon}
-        </div>
+      {Icon && (
+        <Icon className="shrink-0 w-6 h-6 text-ink" />
       )}
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-sm text-foreground">{label}</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium text-sm text-ink">{label}</span>
           {selected && !loading && (
-            <Check className="w-4 h-4 text-pral-600 shrink-0" />
+            <span className="text-[10px] label-caps text-accent shrink-0">
+              Selected
+            </span>
           )}
         </div>
         {description && (
-          <p className="text-xs text-muted mt-1 leading-relaxed">{description}</p>
+          <p className="text-xs text-ink-muted mt-1.5 leading-relaxed">
+            {description}
+          </p>
         )}
       </div>
     </motion.button>
@@ -94,11 +117,12 @@ export function ClipCard({
       type="button"
       onClick={onClick}
       disabled={loading}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.98 }}
+      whileTap={{ scale: 0.995 }}
       className={clsx(
-        "relative w-full text-left rounded-2xl border-2 overflow-hidden transition-all focus-ring",
-        selected ? "border-pral-500 card-shadow" : "border-border hover:border-pral-300"
+        "relative w-full text-left border overflow-hidden transition-colors focus-ring",
+        selected
+          ? "border-accent ring-1 ring-accent/20"
+          : "border-line hover:border-line-strong"
       )}
     >
       <div className={clsx("h-36 bg-gradient-to-br relative", gradient)}>
@@ -107,27 +131,27 @@ export function ClipCard({
         ) : (
           <>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-l-[14px] border-l-white border-b-[8px] border-b-transparent ml-1" />
+              <div className="w-10 h-10 border border-white/40 flex items-center justify-center">
+                <div className="w-0 h-0 border-t-[7px] border-t-transparent border-l-[12px] border-l-white border-b-[7px] border-b-transparent ml-0.5" />
               </div>
             </div>
-            <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-black/40 text-white text-xs font-medium">
+            <div className="absolute top-0 right-0 px-2 py-1 bg-ink/70 text-white text-[11px] font-medium tabular-nums">
               {duration}s
             </div>
             {selected && (
-              <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-pral-500 flex items-center justify-center">
-                <Check className="w-3.5 h-3.5 text-white" />
+              <div className="absolute top-0 left-0 px-2 py-1 bg-accent text-white text-[10px] label-caps">
+                  ⠀
               </div>
             )}
           </>
         )}
       </div>
-      <div className="p-3 bg-surface-elevated">
-        <p className="text-sm font-medium text-foreground truncate">{title}</p>
+      <div className="p-3 bg-panel-raised border-t border-line">
+        <p className="text-sm font-medium text-ink truncate">{title}</p>
         <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-muted capitalize">{shotType}</span>
-          <span className="text-xs text-pral-600 font-medium">
-            {Math.round(quality * 100)}% quality
+          <span className="text-xs text-ink-muted capitalize">{shotType}</span>
+          <span className="text-xs text-accent-ink font-medium tabular-nums">
+            {Math.round(quality * 100)}%
           </span>
         </div>
       </div>
@@ -161,16 +185,18 @@ export function PreviewCard({
       type="button"
       onClick={onClick}
       disabled={loading}
-      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.995 }}
       className={clsx(
-        "relative w-full text-left rounded-2xl border-2 overflow-hidden transition-all focus-ring",
-        selected ? "border-pral-500 card-shadow" : "border-border hover:border-pral-300"
+        "relative w-full text-left border overflow-hidden transition-colors focus-ring",
+        selected
+          ? "border-accent ring-1 ring-accent/20"
+          : "border-line hover:border-line-strong"
       )}
     >
-      <div className="p-4 bg-surface-elevated flex justify-center">
+      <div className="p-4 bg-panel flex justify-center border-b border-line">
         <div
           className={clsx(
-            "bg-gradient-to-br rounded-xl relative overflow-hidden",
+            "bg-gradient-to-br relative overflow-hidden",
             gradient,
             isVertical ? "w-24 h-44" : "w-full h-36"
           )}
@@ -179,19 +205,19 @@ export function PreviewCard({
             <div className="absolute inset-0 skeleton-shimmer" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-white/25 backdrop-blur flex items-center justify-center">
+              <div className="w-9 h-9 border border-white/40 flex items-center justify-center">
                 <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-0.5" />
               </div>
             </div>
           )}
         </div>
       </div>
-      <div className="px-4 pb-4 bg-surface-elevated">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-muted">{duration}s</span>
-          <span className="text-xs text-muted">·</span>
-          <span className="text-xs text-muted">{aspectRatio}</span>
+      <div className="px-4 py-3 bg-panel-raised">
+        <p className="text-sm font-medium text-ink">{title}</p>
+        <div className="flex items-center gap-2 mt-1 text-xs text-ink-muted tabular-nums">
+          <span>{duration}</span>
+          <span aria-hidden>·</span>
+          <span>{aspectRatio}</span>
         </div>
       </div>
     </motion.button>

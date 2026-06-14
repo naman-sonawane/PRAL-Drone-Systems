@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 import { AuthGuard } from "@/components/AuthGuard";
-import { PrimaryButton } from "@/components/ProgressLoader";
+import { PrimaryButton, SecondaryButton } from "@/components/ProgressLoader";
 import { api } from "@/lib/api";
 import { clearActiveMission, getActiveMission } from "@/lib/storage";
 import {
@@ -13,7 +13,6 @@ import {
   OUTPUT_STYLE_LABELS,
   type Mission,
 } from "@/lib/types";
-import { CheckCircle2, Download, Plus, Share2 } from "lucide-react";
 
 export default function ExportPage() {
   const router = useRouter();
@@ -32,8 +31,8 @@ export default function ExportPage() {
     setMission(m);
 
     const interval = setInterval(() => {
-      setProgress((p) => Math.min(p + 8, 95));
-    }, 200);
+      setProgress((p) => Math.min(p + Math.random() * 5 + 2, 95));
+    }, 600);
 
     api.exportMedia(m.selected_preview_id ?? "prev-1").then((result) => {
       clearInterval(interval);
@@ -55,17 +54,17 @@ export default function ExportPage() {
     link.click();
   }
 
-  function handleNewMission() {
+  function handleNewTarget() {
     clearActiveMission();
     router.push("/");
   }
 
   const styleLabel = mission?.output_style
     ? OUTPUT_STYLE_LABELS[mission.output_style].label
-    : "—";
+    : "-";
   const destLabel = mission?.destination
     ? DESTINATION_LABELS[mission.destination].label
-    : "—";
+    : "-";
 
   return (
     <AuthGuard>
@@ -77,89 +76,77 @@ export default function ExportPage() {
               animate={{ opacity: 1 }}
               className="text-center"
             >
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-pral-100 flex items-center justify-center">
-                <div className="w-10 h-10 border-3 border-pral-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-12 h-12 mx-auto mb-6 border border-line flex items-center justify-center">
+                <div className="w-5 h-5 border-2 border-accent border-t-transparent animate-spin" />
               </div>
-              <h1 className="text-xl font-semibold mb-2">Exporting media</h1>
-              <p className="text-sm text-muted mb-6">
-                Rendering final {styleLabel} for {destLabel}…
+              <h1 className="text-xl font-medium mb-2">Exporting</h1>
+              <p className="text-sm text-ink-muted mb-6">
+                Rendering {styleLabel} for {destLabel}
               </p>
-              <div className="h-2 bg-border rounded-full overflow-hidden">
+              <div className="h-1 bg-line overflow-hidden">
                 <motion.div
-                  className="h-full bg-pral-500 rounded-full"
+                  className="h-full bg-accent"
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
-              <p className="text-xs text-muted mt-2">{progress}%</p>
+              <p className="text-xs text-ink-faint mt-2 tabular-nums">
+                {progress}%
+              </p>
             </motion.div>
           ) : (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
               className="text-center"
             >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", delay: 0.1 }}
-                className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-100 flex items-center justify-center"
-              >
-                <CheckCircle2 className="w-10 h-10 text-emerald-600" />
-              </motion.div>
-
-              <h1 className="text-2xl font-semibold mb-2">Ready to ship</h1>
-              <p className="text-muted mb-8 leading-relaxed">
-                Your {styleLabel} has been exported for {destLabel}.
-                Download the file or start a new mission.
+              <p className="label-caps text-accent-ink mb-4">06 Export</p>
+              <h1 className="text-2xl font-medium mb-2">Export complete</h1>
+              <p className="text-ink-muted mb-8 leading-relaxed text-sm">
+                {styleLabel} rendered for {destLabel}. Download the file or
+                start over with a new location.
               </p>
 
-              <div className="glass rounded-2xl p-4 mb-8 text-left card-shadow">
-                <p className="text-xs font-medium text-muted uppercase tracking-wide mb-2">
-                  Export details
+              <div className="panel p-4 mb-8 text-left">
+                <p className="text-xs label-caps text-ink-muted mb-3">
+                  Details
                 </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted">File</span>
-                    <span className="font-medium text-foreground">{filename}</span>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">File</dt>
+                    <dd className="font-medium text-ink text-right">{filename}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Style</span>
-                    <span className="font-medium">{styleLabel}</span>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Style</dt>
+                    <dd className="font-medium">{styleLabel}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Platform</span>
-                    <span className="font-medium">{destLabel}</span>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Platform</dt>
+                    <dd className="font-medium">{destLabel}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Clips used</span>
-                    <span className="font-medium">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Clips</dt>
+                    <dd className="font-medium tabular-nums">
                       {mission?.selected_clip_ids?.length ?? 0}
-                    </span>
+                    </dd>
                   </div>
-                </div>
+                </dl>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
                 <PrimaryButton onClick={handleDownload}>
-                  <Download className="w-4 h-4" />
                   Download MP4
                 </PrimaryButton>
-                <button
-                  onClick={() => {}}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-surface transition-colors focus-ring"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share link
-                </button>
+                <SecondaryButton onClick={() => {}}>
+                  Copy link
+                </SecondaryButton>
               </div>
 
               <button
-                onClick={handleNewMission}
-                className="mt-8 inline-flex items-center gap-2 text-sm text-pral-600 hover:text-pral-700 font-medium transition-colors"
+                onClick={handleNewTarget}
+                className="mt-8 text-sm text-ink-muted hover:text-accent transition-colors"
               >
-                <Plus className="w-4 h-4" />
-                Start new mission
+                New location →
               </button>
             </motion.div>
           )}

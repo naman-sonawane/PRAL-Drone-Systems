@@ -7,12 +7,12 @@ import { AppShell } from "@/components/AppShell";
 import { AuthGuard } from "@/components/AuthGuard";
 import { ClipCard } from "@/components/OptionCard";
 import { GridSkeleton } from "@/components/LoadingSkeleton";
+import { PageHeader } from "@/components/PageHeader";
 import { PrimaryButton } from "@/components/ProgressLoader";
 import { api } from "@/lib/api";
 import { getActiveMission, updateActiveMission } from "@/lib/storage";
 import type { FootageClip } from "@/lib/types";
 import { randomDelay } from "@/lib/utils";
-import { ArrowRight, Film } from "lucide-react";
 
 export default function ClipsPage() {
   const router = useRouter();
@@ -67,23 +67,11 @@ export default function ClipsPage() {
     <AuthGuard>
       <AppShell>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <div className="flex items-center gap-2 text-pral-600 mb-2">
-              <Film className="w-4 h-4" />
-              <span className="text-sm font-medium">Curated footage set</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-              Review captured clips
-            </h1>
-            <p className="text-muted mt-2 max-w-xl leading-relaxed">
-              Pipeline 1 complete. Select the clips to include in your finished
-              media — or keep all for maximum coverage.
-            </p>
-          </motion.div>
+          <PageHeader
+            step="03 Clips"
+            title="Review footage"
+            description="Acquisition complete. Choose which clips to include in the final edit."
+          />
 
           {loading ? (
             <GridSkeleton count={6} />
@@ -96,9 +84,9 @@ export default function ClipsPage() {
               {clips.map((clip, i) => (
                 <motion.div
                   key={clip.id}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
+                  transition={{ delay: i * 0.04 }}
                 >
                   <ClipCard
                     title={clip.title}
@@ -115,17 +103,16 @@ export default function ClipsPage() {
             </motion.div>
           )}
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-muted">
-              {selectedIds.size} of {clips.length} clips selected
+          <div className="action-bar">
+            <p className="text-sm text-ink-muted tabular-nums">
+              {selectedIds.size} of {clips.length} selected
             </p>
             <PrimaryButton
               loading={continuing}
               disabled={selectedIds.size === 0 || loading}
               onClick={handleContinue}
             >
-              Choose style & platform
-              <ArrowRight className="w-4 h-4" />
+              Configure output
             </PrimaryButton>
           </div>
         </div>

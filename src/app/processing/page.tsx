@@ -15,30 +15,50 @@ export default function ProcessingPage() {
 
   useEffect(() => {
     const mission = getActiveMission();
+
     if (!mission) {
       router.replace("/");
       return;
     }
+
     setMissionName(mission.name);
 
     const timers: ReturnType<typeof setTimeout>[] = [];
 
+    // Initial delay before processing starts
+    let cumulativeDelay = 500;
+
     PROCESSING_STAGES.forEach((_, i) => {
+      const isLastStage = i === PROCESSING_STAGES.length - 1;
+
+      // Make stages take much longer with more randomness
+      const stageDuration = isLastStage
+        ? Math.floor(Math.random() * 5000) + 5000 // 5–10s
+        : Math.floor(Math.random() * 3500) + 2000; // 2–5.5s
+
       const timer = setTimeout(() => {
         setCurrentStep(i);
         updateActiveMission({ progress_stage: i });
-      }, i * 1400 + 400);
+      }, cumulativeDelay);
+
       timers.push(timer);
+      cumulativeDelay += stageDuration;
     });
 
     const doneTimer = setTimeout(() => {
-      updateActiveMission({ status: "clips_ready", progress_stage: PROCESSING_STAGES.length });
+      updateActiveMission({
+        status: "clips_ready",
+        progress_stage: PROCESSING_STAGES.length,
+      });
+
       router.push("/clips");
-    }, PROCESSING_STAGES.length * 1400 + 800);
+    }, cumulativeDelay);
 
     timers.push(doneTimer);
 
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      timers.forEach(clearTimeout);
+    };
   }, [router]);
 
   return (
@@ -49,7 +69,7 @@ export default function ProcessingPage() {
             steps={PROCESSING_STAGES}
             currentStep={currentStep}
             title="Acquiring footage"
-            subtitle={missionName ? `Mission: ${missionName}` : undefined}
+            subtitle={missionName || undefined}
           />
         </div>
       </AppShell>

@@ -1,4 +1,4 @@
-# PRAL — Vision Flowchart
+# PRAL - Vision Flowchart
 
 A simple view of how PRAL goes from "film this" to finished media.
 See [VISION.md](./VISION.md) for the full write-up.
@@ -16,7 +16,7 @@ flowchart LR
 
 ---
 
-## Pipeline 1 — Footage Acquisition
+## Pipeline 1 - Footage Acquisition
 
 The drone figures out what's worth filming, then films it well.
 
@@ -36,7 +36,7 @@ flowchart TD
 
 ---
 
-## Pipeline 2 — Media Processing
+## Pipeline 2 - Media Processing
 
 The footage becomes marketing-ready media.
 

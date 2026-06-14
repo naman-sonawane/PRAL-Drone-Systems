@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Check } from "lucide-react";
 import { clsx } from "clsx";
+import { useEffect, useRef } from "react";
 
 interface Step {
   id: number | string;
@@ -24,34 +24,54 @@ export function ProgressLoader({
   subtitle,
 }: ProgressLoaderProps) {
   const progress = Math.min(100, ((currentStep + 1) / steps.length) * 100);
+  const stepsContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (stepsContainerRef.current) {
+      const container = stepsContainerRef.current;
+      const currentStepElement = container.children[currentStep] as HTMLElement;
+      
+      if (currentStepElement) {
+        setTimeout(() => {
+          currentStepElement.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
+        }, 100);
+      }
+    }
+  }, [currentStep]);
 
   return (
     <div className="max-w-md mx-auto w-full">
       <div className="text-center mb-8">
-        <motion.div
-          className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-pral-100 flex items-center justify-center"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <div className="w-8 h-8 border-3 border-pral-500 border-t-transparent rounded-full animate-spin" />
-        </motion.div>
-        <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-        {subtitle && <p className="text-sm text-muted mt-1">{subtitle}</p>}
+        <div className="w-12 h-12 mx-auto mb-5 border border-line flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-accent border-t-transparent animate-spin" />
+        </div>
+        <h2 className="text-xl font-medium text-ink">{title}</h2>
+        {subtitle && (
+          <p className="text-sm text-ink-muted mt-1.5">{subtitle}</p>
+        )}
       </div>
 
       <div className="mb-6">
-        <div className="h-1.5 bg-border rounded-full overflow-hidden">
+        <div className="h-1 bg-line overflow-hidden">
           <motion.div
-            className="h-full bg-pral-500 rounded-full"
+            className="h-full bg-accent"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           />
         </div>
-        <p className="text-xs text-muted mt-2 text-right">{Math.round(progress)}%</p>
+        <p className="text-xs text-ink-faint mt-2 text-right tabular-nums">
+          {Math.round(progress)}%
+        </p>
       </div>
 
-      <div className="space-y-2">
+      <div 
+        ref={stepsContainerRef}
+        className="space-y-0 border border-line divide-y divide-line max-h-96 overflow-y-auto"
+      >
         <AnimatePresence mode="popLayout">
           {steps.map((step, i) => {
             const isComplete = i < currentStep;
@@ -61,34 +81,32 @@ export function ProgressLoader({
             return (
               <motion.div
                 key={step.id}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
+                transition={{ delay: i * 0.04 }}
                 className={clsx(
-                  "flex items-start gap-3 p-3 rounded-xl transition-colors",
-                  isCurrent && "bg-pral-50 border border-pral-200",
-                  isComplete && "opacity-70",
-                  isPending && "opacity-40"
+                  "flex items-start gap-3 px-4 py-3 transition-colors",
+                  isCurrent && "bg-accent-muted",
+                  isComplete && "opacity-80",
+                  isPending && "opacity-45"
                 )}
               >
-                <div
+                <span
                   className={clsx(
-                    "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                    isComplete && "bg-pral-500 text-white",
-                    isCurrent && "bg-pral-100 border-2 border-pral-500",
-                    isPending && "bg-border"
+                    "w-5 h-5 shrink-0 mt-0.5 flex items-center justify-center text-[10px] font-medium tabular-nums border",
+                    isComplete && "bg-accent text-white border-accent",
+                    isCurrent && "border-accent text-accent bg-panel-raised",
+                    isPending && "border-line text-ink-faint bg-panel"
                   )}
                 >
-                  {isComplete ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : isCurrent ? (
-                    <div className="w-2 h-2 rounded-full bg-pral-500 animate-pulse" />
-                  ) : null}
-                </div>
+                  {isComplete ? "✓" : i + 1}
+                </span>
                 <div>
-                  <p className="text-sm font-medium text-foreground">{step.label}</p>
+                  <p className="text-sm font-medium text-ink">{step.label}</p>
                   {step.description && (
-                    <p className="text-xs text-muted mt-0.5">{step.description}</p>
+                    <p className="text-xs text-ink-muted mt-0.5">
+                      {step.description}
+                    </p>
                   )}
                 </div>
               </motion.div>
@@ -100,8 +118,8 @@ export function ProgressLoader({
   );
 }
 
-interface SpinnerButtonProps {
-  loading: boolean;
+interface ButtonProps {
+  loading?: boolean;
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
@@ -110,29 +128,59 @@ interface SpinnerButtonProps {
 }
 
 export function PrimaryButton({
-  loading,
+  loading = false,
   children,
   className,
   onClick,
   disabled,
   type = "button",
-}: SpinnerButtonProps) {
+}: ButtonProps) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
       className={clsx(
-        "inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl",
-        "bg-pral-600 text-white font-medium text-sm",
-        "hover:bg-pral-700 active:bg-pral-800",
-        "disabled:opacity-60 disabled:cursor-not-allowed",
-        "transition-all duration-200 focus-ring shadow-sm",
+        "inline-flex items-center justify-center gap-2 px-5 py-2.5",
+        "bg-accent text-white text-sm font-medium",
+        "hover:bg-accent-hover active:bg-accent-ink",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+        "transition-colors duration-150 focus-ring",
         className
       )}
     >
       {loading && (
-        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white animate-spin" />
+      )}
+      {children}
+    </button>
+  );
+}
+
+export function SecondaryButton({
+  loading = false,
+  children,
+  className,
+  onClick,
+  disabled,
+  type = "button",
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={clsx(
+        "inline-flex items-center justify-center gap-2 px-5 py-2.5",
+        "border border-line-strong bg-panel-raised text-ink text-sm font-medium",
+        "hover:border-ink-faint hover:bg-panel",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+        "transition-colors duration-150 focus-ring",
+        className
+      )}
+    >
+      {loading && (
+        <div className="w-3.5 h-3.5 border-2 border-ink-faint border-t-ink animate-spin" />
       )}
       {children}
     </button>

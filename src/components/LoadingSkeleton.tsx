@@ -7,7 +7,7 @@ interface SkeletonProps {
 export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
-      className={clsx("rounded-lg skeleton-shimmer", className)}
+      className={clsx("skeleton-shimmer", className)}
       aria-hidden="true"
     />
   );
@@ -15,8 +15,8 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function CardSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-surface-elevated p-4 space-y-3">
-      <Skeleton className="h-40 w-full rounded-xl" />
+    <div className="border border-line bg-panel-raised p-4 space-y-3">
+      <Skeleton className="h-40 w-full" />
       <Skeleton className="h-4 w-3/4" />
       <Skeleton className="h-3 w-1/2" />
     </div>

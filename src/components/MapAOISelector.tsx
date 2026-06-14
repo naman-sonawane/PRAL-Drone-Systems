@@ -10,13 +10,25 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Circle as CircleIcon, MapPin, RotateCcw } from "lucide-react";
 import type { AOI, LatLng } from "@/lib/types";
 import { DEFAULT_AOI } from "@fixtures/index";
+
+// Fix Leaflet's default icon paths in Next.js which cause 404s
+if (typeof window !== "undefined") {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  });
+}
+
+const AOI_COLOR = "#e50914";
 
 interface MapAOISelectorProps {
   onAOIChange: (aoi: AOI | null) => void;
   initialAOI?: AOI;
+  userLocation?: LatLng | null;
 }
 
 function metersToLatLngDelta(meters: number, lat: number): number {
@@ -51,19 +63,13 @@ function CircleDrawer({
       if (!drawing || !startRef.current) return;
       const start = startRef.current;
       const current = e.latlng;
-      const dist = map.distance(
-        L.latLng(start.lat, start.lng),
-        current
-      );
+      const dist = map.distance(L.latLng(start.lat, start.lng), current);
       setRadius(Math.max(20, dist));
     },
     mouseup(e) {
       if (!drawing || !startRef.current) return;
       const start = startRef.current;
-      const dist = map.distance(
-        L.latLng(start.lat, start.lng),
-        e.latlng
-      );
+      const dist = map.distance(L.latLng(start.lat, start.lng), e.latlng);
       const finalRadius = Math.max(30, Math.min(dist, 500));
       onComplete(start, finalRadius);
       startRef.current = null;
@@ -81,8 +87,8 @@ function CircleDrawer({
       center={[center.lat, center.lng]}
       radius={radius}
       pathOptions={{
-        color: "#0c87e8",
-        fillColor: "#0c87e8",
+        color: AOI_COLOR,
+        fillColor: AOI_COLOR,
         fillOpacity: 0.15,
         weight: 2.5,
         dashArray: drawing ? "8 4" : undefined,
@@ -96,13 +102,53 @@ function MapController({ center, radius }: { center: LatLng; radius: number }) {
 
   useEffect(() => {
     const delta = metersToLatLngDelta(radius * 2.5, center.lat);
-    map.flyTo([center.lat, center.lng], map.getBoundsZoom(
-      L.latLngBounds(
-        [center.lat - delta, center.lng - delta],
-        [center.lat + delta, center.lng + delta]
-      )
-    ), { duration: 0.6 });
+    map.flyTo(
+      [center.lat, center.lng],
+      map.getBoundsZoom(
+        L.latLngBounds(
+          [center.lat - delta, center.lng - delta],
+          [center.lat + delta, center.lng + delta]
+        )
+      ),
+      { duration: 0.6 }
+    );
   }, [center, radius, map]);
+
+  return null;
+}
+
+function UserLocationMarker({ location }: { location: LatLng }) {
+  return (
+    <Circle
+      center={[location.lat, location.lng]}
+      radius={8}
+      pathOptions={{
+        color: "#fff",
+        fillColor: "#4285F4",
+        fillOpacity: 0.9,
+        weight: 2,
+      }}
+    />
+  );
+}
+
+function GeolocateController({
+  location,
+  hasFlown,
+  onFlown,
+}: {
+  location: LatLng;
+  hasFlown: boolean;
+  onFlown: () => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!hasFlown) {
+      map.flyTo([location.lat, location.lng], 17, { duration: 0.8 });
+      onFlown();
+    }
+  }, [location, map, hasFlown, onFlown]);
 
   return null;
 }
@@ -110,10 +156,14 @@ function MapController({ center, radius }: { center: LatLng; radius: number }) {
 export default function MapAOISelector({
   onAOIChange,
   initialAOI = DEFAULT_AOI,
+  userLocation = null,
 }: MapAOISelectorProps) {
   const [aoi, setAoi] = useState<AOI | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [label, setLabel] = useState("");
+  const [hasFlownToUser, setHasFlownToUser] = useState(false);
+
+  const mapCenter = userLocation ?? initialAOI.center;
 
   const handleComplete = useCallback(
     (center: LatLng, radiusM: number) => {
@@ -142,9 +192,9 @@ export default function MapAOISelector({
   }
 
   return (
-    <div className="relative w-full h-full min-h-[480px] rounded-2xl overflow-hidden border border-border card-shadow">
+    <div className="relative w-full h-full min-h-[480px] overflow-hidden border border-line">
       <MapContainer
-        center={[initialAOI.center.lat, initialAOI.center.lng]}
+        center={[mapCenter.lat, mapCenter.lng]}
         zoom={17}
         className="w-full h-full min-h-[480px]"
         zoomControl={false}
@@ -158,14 +208,25 @@ export default function MapAOISelector({
           opacity={0.7}
         />
 
+        {userLocation && !aoi && (
+          <>
+            <UserLocationMarker location={userLocation} />
+            <GeolocateController
+              location={userLocation}
+              hasFlown={hasFlownToUser}
+              onFlown={() => setHasFlownToUser(true)}
+            />
+          </>
+        )}
+
         {aoi && (
           <>
             <Circle
               center={[aoi.center.lat, aoi.center.lng]}
               radius={aoi.radius_m}
               pathOptions={{
-                color: "#0c87e8",
-                fillColor: "#0c87e8",
+                color: AOI_COLOR,
+                fillColor: AOI_COLOR,
                 fillOpacity: 0.18,
                 weight: 2.5,
               }}
@@ -181,64 +242,51 @@ export default function MapAOISelector({
         />
       </MapContainer>
 
-      {/* Floating controls */}
-      <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col sm:flex-row gap-3 pointer-events-none">
-        <div className="glass rounded-xl px-4 py-3 card-shadow pointer-events-auto flex-1 max-w-sm">
-          <div className="flex items-center gap-2 text-pral-700 mb-1">
-            <CircleIcon className="w-4 h-4" />
-            <span className="text-sm font-medium">Circle to select target</span>
-          </div>
-          <p className="text-xs text-muted leading-relaxed">
+      <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col sm:flex-row gap-2 pointer-events-none">
+        <div className="panel px-4 py-3 pointer-events-auto flex-1 max-w-sm">
+          <p className="text-xs label-caps text-accent-ink mb-1">Area of interest</p>
+          <p className="text-sm text-ink leading-snug">
             {drawing
-              ? "Click and drag outward to draw your area of interest"
+              ? "Click and drag to set radius"
               : aoi
-                ? `AOI: ${aoi.radius_m}m radius · ${aoi.label}`
-                : "Draw a circle around the building or location to film"}
+                ? `${aoi.radius_m}m radius · ${aoi.label}`
+                : userLocation
+                  ? "Draw a circle around the site to film"
+                  : "Draw a circle around the site to film"}
           </p>
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-4 right-4 z-[1000] flex flex-col sm:flex-row gap-3 items-end pointer-events-none">
-        <div className="glass rounded-xl p-3 card-shadow pointer-events-auto flex-1 max-w-xs w-full">
-          <label className="text-xs font-medium text-muted block mb-1.5">
-            Target label
-          </label>
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Market Street Property"
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-white/90 focus:outline-none focus:ring-2 focus:ring-pral-500/30"
-          />
-        </div>
+      <div className="absolute bottom-4 left-4 right-4 z-[1000] flex flex-col sm:flex-row gap-2 items-end pointer-events-none">
 
         <div className="flex gap-2 pointer-events-auto">
           {aoi && (
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl glass card-shadow text-sm font-medium text-muted hover:text-foreground transition-colors focus-ring"
+              className="px-4 py-2.5 border border-line bg-panel-raised text-sm font-medium text-ink-muted hover:text-ink hover:border-line-strong transition-colors focus-ring"
             >
-              <RotateCcw className="w-4 h-4" />
               Reset
             </button>
           )}
-          <button
-            onClick={startDrawing}
-            disabled={drawing}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all focus-ring ${
-              drawing
-                ? "bg-pral-100 text-pral-700 border-2 border-pral-400 border-dashed"
-                : "bg-pral-600 text-white hover:bg-pral-700 shadow-sm"
-            }`}
-          >
-            <MapPin className="w-4 h-4" />
-            {drawing ? "Drawing…" : aoi ? "Redraw" : "Draw circle"}
-          </button>
+<button
+  onClick={startDrawing}
+  disabled={drawing}
+  className={`px-5 py-2.5 text-sm font-medium transition-colors focus-ring ${
+    drawing
+      ? "bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed"
+      : "bg-white text-red-400 hover:bg-slate-100"
+  }`}
+>
+  {drawing ? "Drawing…" : aoi ? "Redraw" : "Draw circle"}
+</button>
         </div>
       </div>
 
       {drawing && (
-        <div className="absolute inset-0 z-[999] cursor-crosshair" style={{ pointerEvents: "none" }} />
+        <div
+          className="absolute inset-0 z-[999] cursor-crosshair"
+          style={{ pointerEvents: "none" }}
+        />
       )}
     </div>
   );

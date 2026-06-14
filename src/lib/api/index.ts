@@ -1,5 +1,5 @@
 /**
- * Mock API layer — swap implementations here when connecting to a real backend.
+ * Mock API layer - swap implementations here when connecting to a real backend.
  */
 import {
   createMissionFromAOI,

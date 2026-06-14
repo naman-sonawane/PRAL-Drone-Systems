@@ -1,7 +1,7 @@
-# PRAL v1 — Product Requirements (Frontend)
+# PRAL v1 - Product Requirements (Frontend)
 
 > **Status:** v1.0 · **Last updated:** 2026-06-13  
-> **Scope:** User-facing web app (mock/demo) against typed fixtures. Drone acquisition logic is out of scope — partners integrate Pipeline 1 later.
+> **Scope:** User-facing web app (mock/demo) against typed fixtures. Drone acquisition logic is out of scope - partners integrate Pipeline 1 later.
 
 ---
 
@@ -32,7 +32,7 @@ User picks target → Pipeline 1 (drone) → Curated Footage Set → Pipeline 2 
 
 ```mermaid
 flowchart LR
-    Login["/login"] --> Target["/ — Circle AOI"]
+    Login["/login"] --> Target["/ - Circle AOI"]
     Target --> Processing["/processing"]
     Processing --> Clips["/clips"]
     Clips --> Create["/create"]
@@ -40,36 +40,36 @@ flowchart LR
     Preview --> Export["/export"]
 ```
 
-### Step 1 — Login (`/login`)
+### Step 1 - Login (`/login`)
 - Any email/password accepted (demo auth).
 - Session stored in `localStorage`.
 - Redirect to `/` on success.
 
-### Step 2 — Target Selection (`/`)
+### Step 2 - Target Selection (`/`)
 - **Primary feature:** Google "Circle to Search"–style interaction on Esri satellite imagery.
 - User clicks **Draw circle**, then click-drag outward to define AOI radius.
 - Optional target label input.
 - CTA **Start acquisition** creates a mission via mock API and navigates to processing.
 
-### Step 3 — Acquisition Progress (`/processing`)
+### Step 3 - Acquisition Progress (`/processing`)
 - Animated step list mirroring Pipeline 1 stages from vision doc (survey → sampling → analysis → optimization → production).
 - Auto-advances ~1.4s per stage; redirects to `/clips` when complete.
 
-### Step 4 — Clip Review (`/clips`)
+### Step 4 - Clip Review (`/clips`)
 - Grid of mock curated clips from `CuratedFootageSet` contract.
 - Toggle clip selection; all selected by default.
 - Micro-interaction: each clip toggle triggers 300–800ms skeleton state.
 
-### Step 5 — Style & Platform (`/create`)
+### Step 5 - Style & Platform (`/create`)
 - **Output styles:** Listing Reel, Social Vertical, Hero Shot, Overview.
 - **Destinations:** Instagram, TikTok, YouTube, Facebook, LinkedIn, Website.
 - Each option click triggers brief loading skeleton before updating selection.
 
-### Step 6 — Preview (`/preview`)
+### Step 6 - Preview (`/preview`)
 - Mock preview cards with aspect-ratio-aware thumbnails.
 - User selects preferred cut; CTA shows loading before export.
 
-### Step 7 — Export (`/export`)
+### Step 7 - Export (`/export`)
 - Fake progress bar during "render."
 - Success state with download button (no real file), share placeholder, and new-mission CTA.
 
@@ -102,7 +102,7 @@ interface ApiClient {
 }
 ```
 
-Swap `MockApiClient` for a real HTTP client when backend is ready. Pages should only call `api.*` — never import fixtures directly (except map defaults).
+Swap `MockApiClient` for a real HTTP client when backend is ready. Pages should only call `api.*` - never import fixtures directly (except map defaults).
 
 ---
 

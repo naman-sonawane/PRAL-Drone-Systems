@@ -1,3 +1,13 @@
+
+import {
+  FaInstagram,
+  FaTiktok,
+  FaYoutube,
+  FaFacebook,
+  FaLinkedin,
+} from "react-icons/fa";
+import { Globe } from "lucide-react";
+
 // Core types matching VISION.md hand-off contract
 
 export type ShotType =
@@ -138,14 +148,20 @@ export const OUTPUT_STYLE_LABELS: Record<OutputStyle, { label: string; descripti
   },
 };
 
-export const DESTINATION_LABELS: Record<Destination, { label: string; icon: string }> = {
-  instagram: { label: "Instagram", icon: "instagram" },
-  tiktok: { label: "TikTok", icon: "tiktok" },
-  youtube: { label: "YouTube", icon: "youtube" },
-  facebook: { label: "Facebook", icon: "facebook" },
-  linkedin: { label: "LinkedIn", icon: "linkedin" },
-  website: { label: "Website", icon: "globe" },
-};
+export const DESTINATION_LABELS = {
+  instagram: { label: "Instagram", icon: FaInstagram },
+  tiktok: { label: "TikTok", icon: FaTiktok },
+  youtube: { label: "YouTube", icon: FaYoutube },
+  facebook: { label: "Facebook", icon: FaFacebook },
+  linkedin: { label: "LinkedIn", icon: FaLinkedin },
+  website: { label: "Website", icon: Globe },
+} satisfies Record<
+  Destination,
+  {
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }
+>;
 
 export const PROCESSING_STAGES = [
   { id: 1, label: "Survey ascent", description: "Capturing wide overview of AOI" },

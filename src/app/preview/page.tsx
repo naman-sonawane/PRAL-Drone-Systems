@@ -7,12 +7,12 @@ import { AppShell } from "@/components/AppShell";
 import { AuthGuard } from "@/components/AuthGuard";
 import { PreviewCard } from "@/components/OptionCard";
 import { GridSkeleton } from "@/components/LoadingSkeleton";
+import { PageHeader } from "@/components/PageHeader";
 import { PrimaryButton } from "@/components/ProgressLoader";
 import { api } from "@/lib/api";
 import { getActiveMission, updateActiveMission } from "@/lib/storage";
 import type { PreviewVariant } from "@/lib/types";
 import { randomDelay } from "@/lib/utils";
-import { ArrowRight, Play } from "lucide-react";
 
 export default function PreviewPage() {
   const router = useRouter();
@@ -61,23 +61,11 @@ export default function PreviewPage() {
     <AuthGuard>
       <AppShell>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <div className="flex items-center gap-2 text-pral-600 mb-2">
-              <Play className="w-4 h-4" />
-              <span className="text-sm font-medium">Rendered previews</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-              Pick your cut
-            </h1>
-            <p className="text-muted mt-2 max-w-xl leading-relaxed">
-              Multiple template variations rendered from your curated clips.
-              Select the direction you want to ship.
-            </p>
-          </motion.div>
+          <PageHeader
+            step="05 Preview"
+            title="Select a cut"
+            description="Template variations rendered from your clips. Pick the version to export."
+          />
 
           {loading ? (
             <GridSkeleton count={3} />
@@ -90,9 +78,9 @@ export default function PreviewPage() {
               {previews.map((preview, i) => (
                 <motion.div
                   key={preview.id}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
+                  transition={{ delay: i * 0.06 }}
                 >
                   <PreviewCard
                     title={preview.title}
@@ -108,10 +96,10 @@ export default function PreviewPage() {
             </motion.div>
           )}
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-muted">
+          <div className="action-bar">
+            <p className="text-sm text-ink-muted">
               {selectedId
-                ? `Selected: ${previews.find((p) => p.id === selectedId)?.title}`
+                ? previews.find((p) => p.id === selectedId)?.title
                 : "Select a preview to continue"}
             </p>
             <PrimaryButton
@@ -119,8 +107,7 @@ export default function PreviewPage() {
               disabled={!selectedId || loading}
               onClick={handleExport}
             >
-              Export media
-              <ArrowRight className="w-4 h-4" />
+              Export
             </PrimaryButton>
           </div>
         </div>
