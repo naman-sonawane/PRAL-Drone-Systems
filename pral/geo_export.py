@@ -30,6 +30,25 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VIZ_DIR = os.path.join(HERE, "viz")
 FOOTPRINT = os.path.join(VIZ_DIR, "e7_footprint.json")
 
+# Each mission waypoint is tagged with the "theoretical part" of the flight it
+# belongs to, derived from its altitude relative to building height. This is the
+# single source of truth the map viz slices the trajectory by; ``min_frac`` is
+# the lower altitude bound (as a fraction of building height) for the band.
+PHASE_DEFS = [
+    {"key": "survey", "label": "SURVEY · top-down", "color": "#a3e635", "min_frac": 0.70},
+    {"key": "orbit", "label": "360 ORBIT · sides", "color": "#38bdf8", "min_frac": 0.32},
+    {"key": "capture", "label": "CAPTURE · detail", "color": "#fbbf24", "min_frac": 0.0},
+]
+
+
+def classify_phase(altitude_m: float, height_m: float) -> str:
+    """Map a waypoint altitude to a flight phase key (survey/orbit/capture)."""
+    frac = altitude_m / height_m if height_m else 0.0
+    for d in PHASE_DEFS:  # ordered high -> low
+        if frac >= d["min_frac"]:
+            return d["key"]
+    return PHASE_DEFS[-1]["key"]
+
 
 def _latlon(enu_xy, lat0, lon0):
     """ENU [.,2 or 3] meters -> [[lat, lon], ...] about the home anchor."""
@@ -75,6 +94,8 @@ def build() -> dict:
         "orbit_radius_m": round(float(scene.orbit_radius), 1),
         "trajectory": _latlon(mission_xy, lat0, lon0),
         "trajectory_alt": [round(float(p[2]), 1) for p in mission_xy],
+        "phases": [classify_phase(float(p[2]), height) for p in mission_xy],
+        "phase_defs": PHASE_DEFS,
         "shots": shots,
         "closeups": [
             {"from": _latlon([cp], lat0, lon0)[0], "to": _latlon([ct], lat0, lon0)[0]}

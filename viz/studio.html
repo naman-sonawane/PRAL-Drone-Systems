@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PRAL · Flight Studio</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{--cyan:#22d3ee;--lime:#a3e635;--amber:#fbbf24;--pink:#f472b6;--dim:#5f6f8f;--red:#fb7185}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#05070e;color:#cdd9f0;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  #map{position:absolute;inset:0;background:#05070e}
+  .leaflet-container{background:#05070e}
+
+  /* top bar */
+  #top{position:absolute;top:0;left:0;right:0;z-index:1200;height:54px;
+    background:linear-gradient(180deg,#070b16ee,#070b1600);display:flex;align-items:center;
+    gap:16px;padding:0 18px;pointer-events:none}
+  #top .logo{font-weight:700;letter-spacing:3px;color:#fff;font-size:15px}
+  #top .logo b{color:var(--cyan)}
+  #top .sub{color:var(--dim);font-size:11px;letter-spacing:1px}
+  .spacer{flex:1}
+
+  /* stage stepper */
+  #stepper{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:1200;
+    display:flex;gap:8px;background:#0b1426dd;border:1px solid #1c2740;border-radius:30px;padding:7px}
+  .step{display:flex;align-items:center;gap:9px;padding:8px 16px;border-radius:22px;cursor:pointer;
+    font-size:12px;letter-spacing:1px;color:var(--dim);transition:.18s;border:1px solid transparent}
+  .step .n{width:20px;height:20px;border-radius:50%;border:1px solid #2a3a5a;display:grid;
+    place-items:center;font-size:11px;color:var(--dim)}
+  .step:hover{background:#13203a}
+  .step.on{color:#fff;border-color:var(--accent,#22d3ee);background:#10203a}
+  .step.on .n{border-color:var(--accent,#22d3ee);color:var(--accent,#22d3ee);box-shadow:0 0 10px var(--accent,#22d3ee)}
+
+  /* generic panel */
+  .panel{position:absolute;z-index:1100;background:#0b1020e6;border:1px solid #1c2740;
+    border-radius:11px;padding:14px;backdrop-filter:blur(4px);width:248px}
+  #left{top:66px;left:14px}
+  #right{top:66px;right:14px;width:236px;display:none}
+  #right.show{display:block}
+  .panel h2{margin:0 0 3px;font-size:14px;color:#fff;letter-spacing:.5px}
+  .panel .desc{font-size:10.5px;color:var(--dim);line-height:1.55;margin-bottom:11px}
+  .stat{display:flex;justify-content:space-between;font-size:11.5px;margin:5px 0}
+  .stat .k{color:var(--dim)} .stat .v{color:var(--lime)}
+  .hr{border-top:1px dashed #1c2740;margin:11px 0}
+
+  /* editor toolbar (stage 3) */
+  #editor{display:none}
+  #editor.show{display:block}
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .tool{background:#10182c;border:1px solid #243450;color:#9fb4d6;padding:7px 6px;border-radius:7px;
+    cursor:pointer;font-family:inherit;font-size:10.5px;letter-spacing:.4px;text-align:center}
+  .tool:hover{background:#16233e}
+  .tool.on{background:#10203a;border-color:var(--pink);color:var(--pink);box-shadow:0 0 8px #f472b655}
+  .ctl{display:flex;align-items:center;justify-content:space-between;font-size:11px;margin:8px 0;color:var(--dim)}
+  .ctl input{width:60px;background:#10182c;border:1px solid #243450;color:var(--cyan);
+    border-radius:5px;padding:3px 6px;font-family:inherit;font-size:11px;text-align:right}
+  .wide{width:100%;background:#10182c;border:1px solid #243450;color:#9fb4d6;padding:8px;border-radius:7px;
+    cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:.6px;margin-top:8px}
+  .wide:hover{background:#16233e}
+  .wide.go{border-color:var(--lime);color:var(--lime)}
+
+  /* saved list */
+  #savedlist{margin-top:6px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+  .srow{display:flex;align-items:center;gap:7px;font-size:10.5px;background:#0e1424;
+    border:1px solid #1c2740;border-radius:6px;padding:6px 8px}
+  .srow .id{color:var(--pink);font-weight:700}
+  .srow .meta{color:var(--dim);flex:1;font-size:9.5px}
+  .srow button{background:none;border:none;cursor:pointer;font-family:inherit;font-size:12px;padding:0 2px}
+  .srow .pl{color:var(--lime)} .srow .dl{color:var(--red)}
+  .empty{font-size:10px;color:var(--dim);text-align:center;padding:14px 0}
+
+  /* 3D inset */
+  #inset{position:absolute;bottom:84px;right:14px;z-index:1100;width:360px;height:260px;display:none;
+    border:1px solid #1c2740;border-radius:11px;overflow:hidden;background:#05070e;box-shadow:0 8px 30px #000a}
+  #inset.show{display:block}
+  #inset .cap{position:absolute;top:0;left:0;right:0;z-index:2;font-size:9.5px;letter-spacing:1.5px;
+    color:var(--cyan);padding:7px 10px;background:linear-gradient(180deg,#05070ecc,#05070e00);pointer-events:none}
+  #tcanvas{width:100%;height:100%;display:block}
+
+  /* markers */
+  .drone{width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;
+    background:radial-gradient(circle,#fff,#22d3ee 60%,transparent 72%);
+    box-shadow:0 0 16px #22d3ee,0 0 30px #22d3ee99}
+  .wpdot{width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--pink);
+    border:1.5px solid #fff;box-shadow:0 0 7px var(--pink)}
+  .leaflet-bar a{background:#0b1020;color:#9fb4d6;border-color:#1c2740}
+  .leaflet-bar a:hover{background:#16233e}
+  .leaflet-control-attribution{background:#0b1020aa!important;color:#5f6f8f!important}
+  .leaflet-control-attribution a{color:#7d93b8!important}
+  .crosshair{cursor:crosshair!important}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="top">
+  <div class="logo"><b>PRAL</b> · FLIGHT STUDIO</div>
+  <div class="sub" id="bldg">loading…</div>
+  <div class="spacer"></div>
+  <div class="sub" id="hint"></div>
+</div>
+
+<!-- left contextual panel -->
+<div id="left" class="panel">
+  <h2 id="ptitle">—</h2>
+  <div class="desc" id="pdesc"></div>
+  <div id="stagestats"></div>
+
+  <!-- stage 3 editor -->
+  <div id="editor">
+    <div class="hr"></div>
+    <div class="tools">
+      <div class="tool" data-mode="waypoint">✎ Waypoint</div>
+      <div class="tool" data-mode="trace">✐ Trace</div>
+      <div class="tool" data-mode="poi">◆ POI region</div>
+      <div class="tool" id="finishBtn">✓ Finish</div>
+    </div>
+    <button class="wide" id="heatBtn">🔥 Interest heatmap: ON</button>
+    <div class="ctl"><span>altitude</span><input id="alt" type="number" value="14" min="2" max="60"> m</div>
+    <div class="ctl"><span>POI radius</span><input id="poir" type="number" value="16" min="5" max="60"> m</div>
+    <button class="wide" id="clearDraw">↺ Discard current drawing</button>
+  </div>
+</div>
+
+<!-- right saved-paths panel (stage 3) -->
+<div id="right" class="panel">
+  <h2>◆ Saved Stage-3 Paths</h2>
+  <div class="desc">Drawn cinematography paths. Replay to fly one; export to hand the concept downstream.</div>
+  <div id="savedlist"></div>
+  <button class="wide go" id="exportBtn">⬇ Export stage-3.json</button>
+  <button class="wide" id="clearSaved">🗑 Clear all saved</button>
+</div>
+
+<!-- 3D inset (stage 2) -->
+<div id="inset">
+  <div class="cap">3D · ORBIT SIDE VIEW · drag to rotate</div>
+  <canvas id="tcanvas"></canvas>
+</div>
+
+<!-- stepper -->
+<div id="stepper">
+  <div class="step" data-stage="1" style="--accent:#a3e635"><span class="n">1</span> SWEEP</div>
+  <div class="step" data-stage="2" style="--accent:#38bdf8"><span class="n">2</span> ORBIT</div>
+  <div class="step" data-stage="3" style="--accent:#f472b6"><span class="n">3</span> CINE</div>
+</div>
+
+<script src="./geo_trace.js"></script>
+<script src="./stage-3.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.149.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const G = window.PRAL_GEO;
+if(!G){ document.body.innerHTML='<p style="padding:40px;color:#fff">geo_trace.js missing — run <code>python -m pral.geo_export</code></p>'; throw new Error('no geo'); }
+
+/* ---------- map ---------- */
+const map = L.map('map',{zoomControl:true,attributionControl:true,doubleClickZoom:false}).setView(G.home,18);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© OpenStreetMap © CARTO · footprint OSM way '+G.osm_id, maxZoom:21, subdomains:'abcd'
+}).addTo(map);
+L.polygon(G.footprint,{color:'#22d3ee',weight:2,fillColor:'#22d3ee',fillOpacity:0.12}).addTo(map);
+map.fitBounds(L.polyline(G.orbit).getBounds().pad(0.18));
+document.getElementById('bldg').textContent=G.name+' · '+G.height_m+' m';
+
+const drone = L.marker(G.home,{icon:L.divIcon({className:'',html:'<div class="drone"></div>'}),zIndexOffset:1000}).addTo(map);
+
+/* ---------- ENU <-> latlon about home ---------- */
+const M=111320, cosH=Math.cos(G.home[0]*Math.PI/180);
+const toEnu  =(la,lo)=>[ (lo-G.home[1])*M*cosH, (la-G.home[0])*M ];
+const fromEnu=(e,n) =>[ G.home[0]+n/M, G.home[1]+e/(M*cosH) ];
+const r2=x=>Math.round(x*100)/100;
+
+/* ---------- path helpers ---------- */
+function bbox(pts){let la0=1e9,la1=-1e9,lo0=1e9,lo1=-1e9;for(const[la,lo]of pts){
+  la0=Math.min(la0,la);la1=Math.max(la1,la);lo0=Math.min(lo0,lo);lo1=Math.max(lo1,lo);}return[la0,la1,lo0,lo1];}
+
+// Hilbert space-filling curve, grid order k -> 2^k x 2^k cells.
+function hilbert(k){const n=1<<k,pts=[];for(let d=0;d<n*n;d++){let t=d,x=0,y=0;
+  for(let s=1;s<n;s*=2){const rx=1&(t>>1),ry=1&(t^rx);
+    if(ry===0){if(rx===1){x=s-1-x;y=s-1-y;}const tmp=x;x=y;y=tmp;}
+    x+=s*rx;y+=s*ry;t>>=2;}pts.push([x,y]);}return{pts,n};}
+
+// Catmull-Rom: a smooth curve passing through every control point.
+function catmullRom(P,seg=18){if(P.length<3)return P.slice();const out=[],Q=[P[0],...P,P[P.length-1]];
+  for(let i=1;i<Q.length-2;i++){const p0=Q[i-1],p1=Q[i],p2=Q[i+1],p3=Q[i+2];
+    for(let j=0;j<seg;j++){const t=j/seg,t2=t*t,t3=t2*t;const f=(a,b,c,d)=>0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);
+      out.push([f(p0[0],p1[0],p2[0],p3[0]),f(p0[1],p1[1],p2[1],p3[1])]);}}
+  out.push(P[P.length-1]);return out;}
+
+// Chaikin corner-cutting: de-jitter a freehand trace.
+function chaikin(P,iters=1){let p=P;for(let k=0;k<iters;k++){if(p.length<3)break;const np=[p[0]];
+  for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1];
+    np.push([a[0]*0.75+b[0]*0.25,a[1]*0.75+b[1]*0.25]);np.push([a[0]*0.25+b[0]*0.75,a[1]*0.25+b[1]*0.75]);}
+  np.push(p[p.length-1]);p=np;}return p;}
+
+function ring(centerLatLon,r,segs,loops=1){const[la,lo]=centerLatLon,[e0,n0]=toEnu(la,lo),out=[];
+  for(let L=0;L<loops;L++)for(let k=0;k<=segs;k++){const a=2*Math.PI*k/segs;out.push(fromEnu(e0+r*Math.cos(a),n0+r*Math.sin(a)));}
+  return out;}
+
+/* ---------- drone animation along a polyline ---------- */
+let anim=null;
+function stopAnim(){if(anim){cancelAnimationFrame(anim);anim=null;}}
+function interp(P,p){const f=Math.max(0,Math.min(P.length-1,p*(P.length-1)));const i=Math.min(P.length-2,Math.floor(f)),fr=f-i;
+  return[P[i][0]+(P[i+1][0]-P[i][0])*fr,P[i][1]+(P[i+1][1]-P[i][1])*fr];}
+function fly(P,{duration=8000,color='#fbbf24',group}={},done){
+  stopAnim();const trail=L.polyline([],{color,weight:3.5,opacity:0.95}).addTo(group||map);
+  let t0=null;
+  function step(ts){if(t0===null)t0=ts;const p=Math.min(1,(ts-t0)/duration);const f=p*(P.length-1),i=Math.floor(f);
+    trail.setLatLngs(P.slice(0,i+1).concat([interp(P,p)]));drone.setLatLng(interp(P,p));
+    if(p<1)anim=requestAnimationFrame(step);else{anim=null;if(done)done();}}
+  anim=requestAnimationFrame(step);return trail;}
+
+/* ============================================================ STAGES */
+let stage=0;
+const transient=[];                 // layers cleared on stage switch
+const addT=l=>{l.addTo(map);transient.push(l);return l;};
+function clearStage(){stopAnim();hideHeat();transient.forEach(l=>map.removeLayer(l));transient.length=0;}
+
+const ptitle=document.getElementById('ptitle'),pdesc=document.getElementById('pdesc'),
+  stats=document.getElementById('stagestats'),hintEl=document.getElementById('hint');
+const ACCENT={1:'#a3e635',2:'#38bdf8',3:'#f472b6'};
+
+function setStage(n){
+  if(stage===3&&n!==3)setMode(null);
+  stage=n;clearStage();
+  document.querySelectorAll('.step').forEach(s=>s.classList.toggle('on',+s.dataset.stage===n));
+  document.getElementById('editor').classList.toggle('show',n===3);
+  document.getElementById('right').classList.toggle('show',n===3);
+  document.getElementById('inset').classList.toggle('show',n===2);
+  if(n===1)stageSweep();else if(n===2)stageOrbit();else stageCine();
+}
+
+/* --- Stage 1: Hilbert sweep --- */
+function stageSweep(){
+  ptitle.style.color='#fff';ptitle.textContent='① Survey sweep';
+  pdesc.textContent='A Hilbert space-filling curve at altitude, camera straight down — the cheapest way to get the gist of the whole site before committing to detail.';
+  hintEl.textContent='SURVEY · top-down coverage';
+  const[la0,la1,lo0,lo1]=bbox(G.footprint);const padLa=(la1-la0)*0.35,padLo=(lo1-lo0)*0.35;
+  const{pts,n}=hilbert(3);
+  const path=pts.map(([x,y])=>[la0-padLa+(la1-la0+2*padLa)*(y/(n-1)), lo0-padLo+(lo1-lo0+2*padLo)*(x/(n-1))]);
+  addT(L.polyline(path,{color:'#a3e635',weight:1.6,opacity:0.35,dashArray:'3 5'}));
+  stats.innerHTML=row('pattern','Hilbert order-3')+row('grid',n+'×'+n+' cells')+row('waypoints',path.length);
+  fly(path,{duration:11000,color:'#a3e635',group:addT(L.layerGroup())});
+}
+
+/* --- Stage 2: 360 orbit (+3D inset) --- */
+function stageOrbit(){
+  ptitle.style.color='#fff';ptitle.textContent='② 360° orbit';
+  pdesc.textContent='A full ring around the building, camera angled inward — captures every facade for the side / 3D view. Drag the 3D inset to look around.';
+  hintEl.textContent='ORBIT · facades & 3D';
+  const path=[...G.orbit,G.orbit[0]];
+  addT(L.polyline(path,{color:'#38bdf8',weight:1.6,opacity:0.45,dashArray:'5 7'}));
+  stats.innerHTML=row('radius',G.orbit_radius_m+' m')+row('altitude',(G.height_m*0.5).toFixed(1)+' m')+row('samples',G.orbit.length);
+  fly(path,{duration:10000,color:'#38bdf8',group:addT(L.layerGroup())});
+  ensure3D();
+}
+
+/* --- Stage 3: POI loiter + manual cinematography editor --- */
+function stageCine(){
+  ptitle.style.color='#fff';ptitle.textContent='③ Cinematography';
+  pdesc.textContent='Scatter points of interest the drone loiters over, then hand-draw the shot: click waypoints for a smooth spline, or trace freehand. Save it as the concept output.';
+  hintEl.textContent='CINE · draw the shot';
+  drawPois();drawSaved();renderSaved();showHeat();
+  // fly the saved cinematography path (prefer a waypoints path, e.g. cine_003);
+  // only fall back to looping the POI regions if no path was drawn.
+  const cine=store.paths.find(p=>p.mode==='waypoints')||store.paths[0];
+  if(cine){fly(cine.smoothed,{duration:(cine.duration_s||8)*1000,color:'#fbbf24',group:addT(L.layerGroup())});}
+  else{let path=[];store.pois.forEach(p=>{path=path.concat(ring(p.center,p.r,24,p.loops));});
+    if(path.length)fly(path,{duration:9000,color:'#f472b6',group:addT(L.layerGroup())});}
+  stats.innerHTML=row('POI regions',store.pois.length)+row('saved paths',store.paths.length);
+}
+const row=(k,v)=>`<div class="stat"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+
+/* ---------- stage 3 persistence ---------- */
+const LS='pral_stage3';
+function loadStore(){try{return JSON.parse(localStorage.getItem(LS))||null}catch(e){return null}}
+function persist(){try{localStorage.setItem(LS,JSON.stringify(store))}catch(e){}}
+let store=loadStore()||{paths:[],pois:[]};
+
+let poiLayers=[],savedLayers=[];
+function drawPois(){poiLayers.forEach(l=>map.removeLayer(l));poiLayers=[];
+  store.pois.forEach(p=>{const[la,lo]=p.center;
+    poiLayers.push(L.circle([la,lo],{radius:p.r,color:'#f472b6',weight:1.4,opacity:0.7,fillColor:'#f472b6',fillOpacity:0.07}).addTo(map));
+    poiLayers.push(L.polyline(ring(p.center,p.r,28),{color:'#f472b6',weight:1.2,opacity:0.6,dashArray:'4 5'}).addTo(map));});}
+function drawSaved(){savedLayers.forEach(l=>map.removeLayer(l));savedLayers=[];
+  store.paths.forEach(rec=>savedLayers.push(L.polyline(rec.smoothed,{color:'#fbbf24',weight:2,opacity:0.55}).addTo(map)));}
+
+/* ---------- interest heatmap ---------- */
+// POIs are the interest peaks; spread a few samples across each region for a
+// fuller blob, and add drawn-path points so the heat traces the cinematography.
+let heatLayer=null, heatOn=true;
+function heatPoints(){const pts=[];
+  store.pois.forEach(p=>{const inten=Math.min(1,0.55+0.18*((p.loops||1)));
+    pts.push([p.center[0],p.center[1],inten]);
+    const[e0,n0]=toEnu(p.center[0],p.center[1]);
+    for(let k=0;k<10;k++){const a=2*Math.PI*k/10,rr=p.r*0.6;const[la,lo]=fromEnu(e0+rr*Math.cos(a),n0+rr*Math.sin(a));pts.push([la,lo,inten*0.55]);}});
+  store.paths.forEach(rec=>(rec.control_points||[]).forEach(([la,lo])=>pts.push([la,lo,0.4])));
+  return pts;}
+function showHeat(){hideHeat();if(!heatOn||!L.heatLayer)return;
+  heatLayer=L.heatLayer(heatPoints(),{radius:42,blur:32,minOpacity:0.28,max:1.0,
+    gradient:{0.2:'#1d4ed8',0.45:'#22d3ee',0.65:'#a3e635',0.85:'#fbbf24',1:'#fb7185'}}).addTo(map);}
+function hideHeat(){if(heatLayer){map.removeLayer(heatLayer);heatLayer=null;}}
+function refreshHeat(){if(heatLayer)showHeat();}
+document.getElementById('heatBtn').onclick=()=>{heatOn=!heatOn;
+  document.getElementById('heatBtn').textContent='🔥 Interest heatmap: '+(heatOn?'ON':'OFF');
+  if(heatOn)showHeat();else hideHeat();};
+
+/* ---------- stage 3 editor ---------- */
+let mode=null, draw=[], drawLayer=null, dots=[], tracing=false, lastT=0;
+const altI=()=>+document.getElementById('alt').value;
+
+function setMode(m){
+  mode=(mode===m)?null:m;
+  document.querySelectorAll('.tool[data-mode]').forEach(t=>t.classList.toggle('on',t.dataset.mode===mode));
+  map.getContainer().classList.toggle('crosshair',!!mode);
+  if(mode==='trace')map.dragging.disable();else map.dragging.enable();
+  if(mode!=='waypoint'&&mode!=='trace')resetDraw();
+}
+function resetDraw(){draw=[];if(drawLayer){map.removeLayer(drawLayer);drawLayer=null;}dots.forEach(d=>map.removeLayer(d));dots=[];}
+function previewDraw(){const sm=mode==='trace'?chaikin(draw,1):catmullRom(draw);
+  if(!drawLayer)drawLayer=L.polyline([],{color:'#fbbf24',weight:3,opacity:0.95}).addTo(map);drawLayer.setLatLngs(sm.length?sm:draw);}
+
+function commit(){
+  if(draw.length<2){resetDraw();return;}
+  const smoothed=(mode==='trace'?chaikin(draw,2):catmullRom(draw)).map(([a,b])=>[+a.toFixed(7),+b.toFixed(7)]);
+  const rec={id:'cine_'+String(store.paths.length).padStart(3,'0'),mode:mode==='trace'?'trace':'waypoints',
+    altitude_m:altI(),duration_s:8,
+    control_points:draw.map(([a,b])=>[+a.toFixed(7),+b.toFixed(7)]),
+    smoothed, enu:smoothed.map(([la,lo])=>{const[e,n]=toEnu(la,lo);return[r2(e),r2(n)];})};
+  store.paths.push(rec);persist();resetDraw();drawSaved();renderSaved();refreshHeat();
+  stats.innerHTML=row('POI regions',store.pois.length)+row('saved paths',store.paths.length);
+}
+
+map.on('mousedown',e=>{if(mode==='trace'){tracing=true;draw=[[e.latlng.lat,e.latlng.lng]];}});
+map.on('mousemove',e=>{if(mode==='trace'&&tracing){const now=performance.now();if(now-lastT<28)return;lastT=now;
+  draw.push([e.latlng.lat,e.latlng.lng]);previewDraw();}});
+map.on('mouseup',()=>{if(mode==='trace'&&tracing){tracing=false;commit();}});
+map.on('click',e=>{
+  if(mode==='waypoint'){draw.push([e.latlng.lat,e.latlng.lng]);
+    dots.push(L.marker(e.latlng,{icon:L.divIcon({className:'',html:'<div class="wpdot"></div>'})}).addTo(map));previewDraw();}
+  else if(mode==='poi'){store.pois.push({center:[e.latlng.lat,e.latlng.lng],r:+document.getElementById('poir').value,loops:2});
+    persist();drawPois();refreshHeat();stats.innerHTML=row('POI regions',store.pois.length)+row('saved paths',store.paths.length);}
+});
+map.on('dblclick',()=>{if(mode==='waypoint')commit();});
+
+document.querySelectorAll('.tool[data-mode]').forEach(t=>t.onclick=()=>setMode(t.dataset.mode));
+document.getElementById('finishBtn').onclick=commit;
+document.getElementById('clearDraw').onclick=resetDraw;
+
+/* ---------- saved list ---------- */
+function renderSaved(){const el=document.getElementById('savedlist');
+  if(!store.paths.length){el.innerHTML='<div class="empty">no paths yet — draw one</div>';return;}
+  el.innerHTML='';store.paths.forEach((rec,i)=>{const r=document.createElement('div');r.className='srow';
+    r.innerHTML=`<span class="id">${rec.id}</span><span class="meta">${rec.mode} · ${rec.control_points.length}pts · ${rec.altitude_m}m</span>`+
+      `<button class="pl" title="replay">▶</button><button class="dl" title="delete">✕</button>`;
+    r.querySelector('.pl').onclick=()=>fly(rec.smoothed,{duration:(rec.duration_s||8)*1000,color:'#fbbf24',group:addT(L.layerGroup())});
+    r.querySelector('.dl').onclick=()=>{store.paths.splice(i,1);persist();drawSaved();renderSaved();refreshHeat();};
+    el.appendChild(r);});}
+
+document.getElementById('exportBtn').onclick=()=>{
+  const payload={stage:3,building:G.name,osm_id:G.osm_id,home:G.home,
+    poi_regions:store.pois.map((p,i)=>{const[e,n]=toEnu(p.center[0],p.center[1]);
+      return{id:'poi_'+String(i).padStart(3,'0'),center:p.center,enu:[r2(e),r2(n)],radius_m:p.r,extra_loops:p.loops};}),
+    paths:store.paths};
+  const b=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='stage-3.json';a.click();URL.revokeObjectURL(a.href);
+  console.log('stage-3 export (feed to a future path-injection stage):',payload);};
+document.getElementById('clearSaved').onclick=()=>{if(confirm('Delete all saved paths and POIs?')){store={paths:[],pois:[]};persist();drawPois();drawSaved();renderSaved();stageCine();}};
+
+/* ---------- 3D inset (Three.js) ---------- */
+let three=null;
+function ensure3D(){
+  if(three){three.resume();return;}
+  if(!window.THREE){document.querySelector('#inset .cap').textContent='3D unavailable (three.js failed to load)';return;}
+  const canvas=document.getElementById('tcanvas');
+  const W=canvas.clientWidth||360,H=canvas.clientHeight||260;
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0x05070e);
+  const cam=new THREE.PerspectiveCamera(52,W/H,0.1,3000);cam.position.set(150,110,150);
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setSize(W,H,false);renderer.setPixelRatio(window.devicePixelRatio||1);
+  // extruded building
+  const enu=G.footprint.map(([la,lo])=>toEnu(la,lo));
+  // shape uses -north so that after rotateX(-90°) the building's north (+Z) lines up with the orbit ring
+  const shape=new THREE.Shape();enu.forEach(([e,n],i)=>i?shape.lineTo(e,-n):shape.moveTo(e,-n));
+  const geo=new THREE.ExtrudeGeometry(shape,{depth:G.height_m,bevelEnabled:false});geo.rotateX(-Math.PI/2);
+  scene.add(new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x16294a,metalness:0.15,roughness:0.85,transparent:true,opacity:0.94})));
+  scene.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x22d3ee})));
+  scene.add(new THREE.GridHelper(500,50,0x1c2740,0x0e1626));
+  // orbit ring + drone
+  const rp=[...G.orbit,G.orbit[0]].map(([la,lo])=>{const[e,n]=toEnu(la,lo);return new THREE.Vector3(e,G.height_m*0.5,n);});
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(rp),new THREE.LineBasicMaterial({color:0x38bdf8})));
+  const d3=new THREE.Mesh(new THREE.SphereGeometry(3,16,16),new THREE.MeshBasicMaterial({color:0xffffff}));scene.add(d3);
+  scene.add(new THREE.AmbientLight(0x8da0c0,0.85));const dl=new THREE.DirectionalLight(0xffffff,0.7);dl.position.set(80,160,60);scene.add(dl);
+  let controls=null;
+  if(THREE.OrbitControls){controls=new THREE.OrbitControls(cam,renderer.domElement);controls.target.set(0,G.height_m*0.5,0);
+    controls.autoRotate=true;controls.autoRotateSpeed=1.1;controls.enableDamping=true;controls.minDistance=60;controls.maxDistance=600;}
+  else cam.lookAt(0,G.height_m*0.5,0);
+  let on=true,k=0,raf=null;
+  function loop(){raf=requestAnimationFrame(loop);if(!on)return;
+    k=(k+0.0035)%1;d3.position.copy(rp[Math.floor(k*(rp.length-1))]);
+    if(controls)controls.update();renderer.render(scene,cam);}
+  three={resume(){on=true;},pause(){on=false;}};loop();
+}
+// pause 3D render when leaving stage 2
+const _setStage=setStage;
+setStage=function(n){if(three&&n!==2)three.pause();_setStage(n);};
+
+/* ---------- load stage-3 dataset ---------- */
+// Source of truth is viz/stage-3.json (the exported concept output). Prefer a
+// live fetch (when served over http); fall back to the bundled stage-3.js
+// (works on file://); fall back to whatever the user saved locally.
+async function loadStage3(){
+  let data=null;
+  try{const r=await fetch('./stage-3.json',{cache:'no-store'});if(r.ok)data=await r.json();}catch(e){}
+  if(!data&&window.PRAL_STAGE3)data=window.PRAL_STAGE3;
+  if(data){
+    store={ pois:(data.poi_regions||[]).map(p=>({center:p.center,r:p.radius_m||16,loops:p.extra_loops||1})),
+            paths:(data.paths||[]) };
+    persist();
+  }else{ store=loadStore()||{paths:[],pois:[]}; }
+}
+
+/* ---------- stepper ---------- */
+document.querySelectorAll('.step').forEach(s=>s.onclick=()=>setStage(+s.dataset.stage));
+(async()=>{ await loadStage3(); setStage(1); })();
+</script>
+</body>
+</html>

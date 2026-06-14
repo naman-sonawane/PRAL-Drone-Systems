@@ -549,6 +549,66 @@
     15.6,
     15.6
   ],
+  "phases": [
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "survey",
+    "capture",
+    "capture",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit",
+    "orbit"
+  ],
+  "phase_defs": [
+    {
+      "key": "survey",
+      "label": "SURVEY \u00b7 top-down",
+      "color": "#a3e635",
+      "min_frac": 0.7
+    },
+    {
+      "key": "orbit",
+      "label": "360 ORBIT \u00b7 sides",
+      "color": "#38bdf8",
+      "min_frac": 0.32
+    },
+    {
+      "key": "capture",
+      "label": "CAPTURE \u00b7 detail",
+      "color": "#fbbf24",
+      "min_frac": 0.0
+    }
+  ],
   "shots": [
     "orbit",
     "flyby",
