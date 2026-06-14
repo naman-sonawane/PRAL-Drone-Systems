@@ -36,6 +36,7 @@ import plotly.graph_objects as go
 import pydeck as pdk
 import pyproj
 import streamlit as st
+import streamlit.components.v1 as components
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -67,6 +68,24 @@ WAYPOINTS_PATH   = STAGE5_DIR / "waypoints.json"
 TRAJECTORY_PATH  = STAGE5_DIR / "trajectory.npy"
 MESH_PATH        = STAGE4_DIR / "building_mesh.ply"
 SCORES_PATH      = STAGE4_DIR / "interest_scores.npy"
+
+VIZ_DIR = _DEFAULT_ROOT / "viz"
+
+# ---------------------------------------------------------------------------
+# Studio HTML builder — inlines geo_trace.js and stage-3.js so the iframe
+# is fully self-contained (no relative-path loading issues in Streamlit).
+# ---------------------------------------------------------------------------
+
+@st.cache_data
+def _build_studio_html() -> str:
+    html = (VIZ_DIR / "studio.html").read_text()
+    for fname in ("geo_trace.js", "stage-3.js"):
+        src = (VIZ_DIR / fname).read_text()
+        html = html.replace(
+            f'<script src="./{fname}"></script>',
+            f"<script>{src}</script>",
+        )
+    return html
 
 # ---------------------------------------------------------------------------
 # ENU -> lat/lon conversion
@@ -318,64 +337,72 @@ fig_alt.update_layout(
 )
 
 # ===========================================================================
-# Layout: two columns (map | altitude profile)
+# Layout
 # ===========================================================================
 st.title("Stage 5 — Path Optimization & Variety Shots")
 
-col_map, col_chart = st.columns([0.65, 0.35])
+tab_map, tab_draw = st.tabs(["Waypoints & Map", "Shot Drawing"])
 
-with col_map:
-    st.pydeck_chart(deck, use_container_width=True, height=500)
+# ---------------------------------------------------------------------------
+# Tab 1: existing heatmap + altitude profile + waypoint editor
+# ---------------------------------------------------------------------------
+with tab_map:
+    col_map, col_chart = st.columns([0.65, 0.35])
 
-with col_chart:
-    st.plotly_chart(fig_alt, use_container_width=True)
+    with col_map:
+        st.pydeck_chart(deck, use_container_width=True, height=500)
 
-# ===========================================================================
-# Waypoint editor (full-width, below the map row)
-# ===========================================================================
-st.subheader("Waypoint Editor")
+    with col_chart:
+        st.plotly_chart(fig_alt, use_container_width=True)
 
-df = pd.DataFrame([
-    {
-        "idx":       int(w["idx"]),
-        "lat":       float(w["lat"]),
-        "lon":       float(w["lon"]),
-        "alt":       float(w["alt"]),
-        "yaw":       float(w["yaw"]),
-        "pitch":     float(w["pitch"]),
-        "shot_type": w["shot_type"],
-        "value":     round(float(w["value"]), 3),
-    }
-    for w in waypoints
-])
+    st.subheader("Waypoint Editor")
 
-edited_df = st.data_editor(
-    df,
-    column_config={
-        "idx":       st.column_config.NumberColumn("idx",        disabled=True),
-        "lat":       st.column_config.NumberColumn("lat",        format="%.6f"),
-        "lon":       st.column_config.NumberColumn("lon",        format="%.6f"),
-        "alt":       st.column_config.NumberColumn("alt (m AGL)", format="%.1f"),
-        "yaw":       st.column_config.NumberColumn("yaw°",       format="%.1f"),
-        "pitch":     st.column_config.NumberColumn("pitch°",     format="%.1f"),
-        "shot_type": st.column_config.SelectboxColumn(
-            "shot_type",
-            options=["orbit", "reveal", "push_in", "top_down"],
-        ),
-        "value":     st.column_config.NumberColumn("value",      disabled=True),
-    },
-    use_container_width=True,
-    hide_index=True,
-)
+    df = pd.DataFrame([
+        {
+            "idx":       int(w["idx"]),
+            "lat":       float(w["lat"]),
+            "lon":       float(w["lon"]),
+            "alt":       float(w["alt"]),
+            "yaw":       float(w["yaw"]),
+            "pitch":     float(w["pitch"]),
+            "shot_type": w["shot_type"],
+            "value":     round(float(w["value"]), 3),
+        }
+        for w in waypoints
+    ])
 
-# Rebuild waypoints from editor so edits flow into the map on the next rerun
-waypoints = edited_df.to_dict(orient="records")
+    edited_df = st.data_editor(
+        df,
+        column_config={
+            "idx":       st.column_config.NumberColumn("idx",        disabled=True),
+            "lat":       st.column_config.NumberColumn("lat",        format="%.6f"),
+            "lon":       st.column_config.NumberColumn("lon",        format="%.6f"),
+            "alt":       st.column_config.NumberColumn("alt (m AGL)", format="%.1f"),
+            "yaw":       st.column_config.NumberColumn("yaw°",       format="%.1f"),
+            "pitch":     st.column_config.NumberColumn("pitch°",     format="%.1f"),
+            "shot_type": st.column_config.SelectboxColumn(
+                "shot_type",
+                options=["orbit", "reveal", "push_in", "top_down"],
+            ),
+            "value":     st.column_config.NumberColumn("value",      disabled=True),
+        },
+        use_container_width=True,
+        hide_index=True,
+    )
 
-# ===========================================================================
-# Export button
-# ===========================================================================
-if st.button("Export waypoints", type="primary"):
-    STAGE5_DIR.mkdir(parents=True, exist_ok=True)
-    with open(WAYPOINTS_PATH, "w") as fh:
-        json.dump(waypoints, fh, indent=2)
-    st.success(f"Saved to {WAYPOINTS_PATH}")
+    waypoints = edited_df.to_dict(orient="records")
+
+    if st.button("Export waypoints", type="primary"):
+        STAGE5_DIR.mkdir(parents=True, exist_ok=True)
+        with open(WAYPOINTS_PATH, "w") as fh:
+            json.dump(waypoints, fh, indent=2)
+        st.success(f"Saved to {WAYPOINTS_PATH}")
+
+# ---------------------------------------------------------------------------
+# Tab 2: viz/studio.html drawing tool — draw shot trajectories on the map
+# ---------------------------------------------------------------------------
+with tab_draw:
+    if not (VIZ_DIR / "studio.html").exists():
+        st.error(f"studio.html not found at `{VIZ_DIR}`")
+    else:
+        components.html(_build_studio_html(), height=820, scrolling=False)
