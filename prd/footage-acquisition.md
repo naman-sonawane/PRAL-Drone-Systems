@@ -1,6 +1,6 @@
 # Footage Acquisition — Vision (Working Draft)
 
-> **Status:** Outline v0.1 · **Scope:** Pipeline 1 only (acquisition). Processing/editing is out of scope here.
+> **Status:** Outline v0.1 · **Scope:** Pipeline 1 only (acquisition).
 > **Purpose:** Capture what we have today so we can make it specific, stage by stage.
 
 ---
